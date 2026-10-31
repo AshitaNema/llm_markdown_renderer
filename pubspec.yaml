@@ -1,0 +1,26 @@
+name: llm_markdown_renderer
+description: >-
+  Renders Markdown streamed token by token from an LLM without jank. Incremental
+  parsing, stable partial code fences, tables and lists, syntax highlighting.
+version: 0.1.0
+repository: https://github.com/AshitaNema/llm_markdown_renderer
+issue_tracker: https://github.com/AshitaNema/llm_markdown_renderer/issues
+topics:
+  - markdown
+  - llm
+  - streaming
+  - chat
+  - syntax-highlighting
+
+environment:
+  sdk: ^3.8.0
+  flutter: ">=3.32.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0

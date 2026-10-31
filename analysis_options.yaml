@@ -1,0 +1,13 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - build/**
+    - example/**
+
+linter:
+  rules:
+    - public_member_api_docs
+    - prefer_final_locals
+    - unawaited_futures
+    - directives_ordering
