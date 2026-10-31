@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:llm_markdown_renderer/llm_markdown_renderer.dart';
 
@@ -426,6 +428,69 @@ void main() {
       }
       expect(find.byType(Table), findsOneWidget);
       expect(find.text('a-much-longer-name'), findsOneWidget);
+    });
+
+    testWidgets('cells are exactly as wide as their text (no mid-word wraps)', (
+      tester,
+    ) async {
+      // The default test font is perfectly regular and hides measuring
+      // errors, so use the real proportional Roboto shipped with Flutter.
+      final root = Platform.environment['FLUTTER_ROOT'];
+      final fonts = '$root/bin/cache/artifacts/material_fonts';
+      if (root == null || !File('$fonts/Roboto-Regular.ttf').existsSync()) {
+        markTestSkipped('Roboto not found in the Flutter SDK');
+        return;
+      }
+      final loader = FontLoader('Roboto');
+      for (final f in ['Regular', 'Bold', 'Italic', 'Medium']) {
+        loader.addFont(
+          Future.value(
+            ByteData.sublistView(
+              File('$fonts/Roboto-$f.ttf').readAsBytesSync(),
+            ),
+          ),
+        );
+      }
+      await loader.load();
+      tester.view.devicePixelRatio = 1.5;
+      addTearDown(tester.view.reset);
+      const md =
+          '| Package | Streaming | Highlighting | Notes |\n'
+          '|---|:-:|:-:|---|\n'
+          '| llm_markdown_renderer | yes | yes | incremental parser |\n'
+          '| naive re-parse | no | maybe | O(n) per token |\n';
+      final c = MarkdownStreamController();
+      addTearDown(c.dispose);
+      // The documented pattern: build the extension from a ThemeData created
+      // outside MaterialApp. Its styles are unresolved (inherit: true) and get
+      // letter spacing etc. from DefaultTextStyle only at render time.
+      final base = ThemeData(fontFamily: 'Roboto');
+      await tester.pumpWidget(
+        host(
+          StreamingMarkdown(controller: c, selectable: false),
+          theme: base.copyWith(extensions: [MarkdownTheme.fromTheme(base)]),
+        ),
+      );
+      for (var i = 0; i < md.length; i += 5) {
+        c.append(md.substring(i, i + 5 > md.length ? md.length : i + 5));
+        await tester.pump();
+      }
+      c.complete();
+      await tester.pump();
+      final heights = <String, double>{};
+      for (final w in tester.widgetList<RichText>(
+        find.descendant(
+          of: find.byType(Table),
+          matching: find.byType(RichText),
+        ),
+      )) {
+        heights[w.text.toPlainText()] = tester.getSize(find.byWidget(w)).height;
+      }
+      expect(heights, isNotEmpty);
+      final oneLine = heights.values.reduce((a, b) => a < b ? a : b);
+      heights.forEach((text, h) {
+        expect(h, oneLine, reason: '"$text" wrapped onto several lines');
+      });
     });
 
     testWidgets('a half-streamed row keeps the table rectangular', (
