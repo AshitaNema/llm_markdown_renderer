@@ -1,3 +1,8 @@
+## 0.1.1
+
+* Fix table columns being sized slightly too narrow, which made cell text wrap mid-word (for example `Highlightin` / `g`). It showed up when `MarkdownTheme.fromTheme` was built from a `ThemeData` created outside `MaterialApp`. Column widths now come from Flutter's own layout and still never shrink while a table streams in.
+* Add a demo GIF to the pub.dev screenshots.
+
 ## 0.1.0
 
 Initial release.
