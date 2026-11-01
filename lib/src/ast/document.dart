@@ -1,11 +1,16 @@
+import 'dart:collection';
+
 import 'block.dart';
 import 'equality.dart';
 
 /// An immutable snapshot of a parsed (possibly still streaming) document.
 final class MarkdownDocument {
   /// Creates a document from [blocks].
+  ///
+  /// The list is wrapped, not copied, so creating a snapshot is O(1) here;
+  /// do not modify [blocks] afterwards.
   MarkdownDocument(List<Block> blocks, {required this.isComplete})
-    : blocks = List.unmodifiable(blocks);
+    : blocks = UnmodifiableListView(blocks);
 
   /// The top-level blocks, in order.
   ///

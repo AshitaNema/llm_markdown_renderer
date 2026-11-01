@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:llm_markdown_renderer/parser.dart';
+import 'package:llm_markdown_renderer/src/parser/line_buffer.dart';
 
 void main() {
   test('splits on LF, CRLF and CR', () {

@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:llm_markdown_renderer/llm_markdown_renderer.dart';
+import 'package:llm_markdown_renderer/src/widgets/inline_renderer.dart'
+    show isSafeLinkUrl;
 
 Widget host(Widget child, {ThemeData? theme}) => MaterialApp(
   theme: theme,

@@ -100,6 +100,10 @@ class MarkdownStreamController extends ChangeNotifier {
     SchedulerBinding? binding;
     try {
       binding = SchedulerBinding.instance;
+      // The binding getter throws (FlutterError in debug, an Error from the
+      // late field in release) when Flutter has not been initialised; there
+      // is no public way to ask, and any failure means "notify directly".
+      // ignore: avoid_catches_without_on_clauses
     } catch (_) {
       binding = null;
     }

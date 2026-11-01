@@ -81,7 +81,7 @@ void main() {
         ..append(crab[1])
         ..append(' there');
       final para = p.document.blocks.single as ParagraphBlock;
-      expect(para.children, [InlineText('hi $crab there')]);
+      expect(para.children, [const InlineText('hi 🦀 there')]);
     });
 
     test('dangling high surrogate at the end does not crash or leak', () {

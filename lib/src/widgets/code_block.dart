@@ -158,63 +158,67 @@ class _CodeBlockViewState extends State<CodeBlockView> {
 
     final headerColor = theme.codeBlockHeaderStyle.color;
     final label = b.language ?? (b.isFenced ? 'code' : 'text');
-    return Semantics(
-      container: true,
-      label: 'Code block, $label',
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: theme.codeBlockBackground,
-          borderRadius: BorderRadius.circular(theme.codeBlockBorderRadius),
-          border: Border.all(color: theme.codeBlockBorderColor),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              color: theme.codeBlockHeaderBackground,
-              padding: const EdgeInsets.fromLTRB(12, 2, 4, 2),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: theme.codeBlockHeaderStyle,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  Material(
-                    type: MaterialType.transparency,
-                    child: IconButton(
-                      onPressed: _copy,
-                      tooltip: _copied ? 'Copied' : 'Copy code',
-                      iconSize: 16,
-                      padding: EdgeInsets.zero,
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
-                      icon: Icon(
-                        _copied ? Icons.check : Icons.content_copy_outlined,
-                        color: headerColor,
+    // Source code reads left to right whatever the surrounding language is.
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Semantics(
+        container: true,
+        label: 'Code block, $label',
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: theme.codeBlockBackground,
+            borderRadius: BorderRadius.circular(theme.codeBlockBorderRadius),
+            border: Border.all(color: theme.codeBlockBorderColor),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                color: theme.codeBlockHeaderBackground,
+                padding: const EdgeInsets.fromLTRB(12, 2, 4, 2),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: theme.codeBlockHeaderStyle,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                ],
+                    Material(
+                      type: MaterialType.transparency,
+                      child: IconButton(
+                        onPressed: _copy,
+                        tooltip: _copied ? 'Copied' : 'Copy code',
+                        iconSize: 16,
+                        padding: EdgeInsets.zero,
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 28,
+                          minHeight: 28,
+                        ),
+                        icon: Icon(
+                          _copied ? Icons.check : Icons.content_copy_outlined,
+                          color: headerColor,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: theme.codeBlockPadding,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: chunks,
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: theme.codeBlockPadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: chunks,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

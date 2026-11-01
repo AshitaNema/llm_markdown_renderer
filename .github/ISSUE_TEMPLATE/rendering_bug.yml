@@ -1,0 +1,35 @@
+name: Rendering bug
+description: Markdown renders wrongly, flickers or janks while streaming
+labels: [bug]
+body:
+  - type: textarea
+    id: markdown
+    attributes:
+      label: The Markdown
+      description: Paste the exact text. A code block is best.
+      render: markdown
+    validations:
+      required: true
+  - type: textarea
+    id: chunks
+    attributes:
+      label: How it was streamed
+      description: >-
+        Chunk sizes or the stream you used (for example "1-12 characters at a
+        time", or paste the list of chunks). If it also happens with one-shot
+        `StreamingMarkdown.static`, say so.
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected, and what you saw
+      description: Screenshots or a screen recording help a lot for flicker.
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Package version, Flutter version, platform.
+      placeholder: llm_markdown_renderer 0.1.1, Flutter 3.35, Android 15
+    validations:
+      required: true

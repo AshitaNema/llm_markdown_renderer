@@ -530,7 +530,7 @@ class _InlineParser {
       final o = toks[oi] as _Delim;
       final use = c.char == '~' ? 2 : (o.count >= 2 && c.count >= 2 ? 2 : 1);
       final inner = _flatten(toks.sublist(oi + 1, ci));
-      final Inline node = c.char == '~'
+      final node = c.char == '~'
           ? InlineStrikethrough(inner)
           : use == 2
           ? InlineStrong(inner)

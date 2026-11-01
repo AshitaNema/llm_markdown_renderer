@@ -12,6 +12,4 @@ export 'src/ast/inline.dart';
 export 'src/highlight/highlighter.dart';
 export 'src/highlight/rule_highlighter.dart';
 export 'src/parser/block_parser.dart' show IncrementalMarkdownParser;
-export 'src/parser/inline_parser.dart' show parseInlines;
-export 'src/parser/line_buffer.dart' show LineBuffer;
 export 'src/parser/options.dart';

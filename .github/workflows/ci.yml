@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Format, analyze, test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Format
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyze package
+        run: flutter analyze
+      - name: Analyze example
+        working-directory: example
+        run: |
+          flutter pub get
+          flutter analyze
+      - name: Test (includes golden tests)
+        run: flutter test --coverage
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: coverage/lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  pana:
+    name: pub.dev score (pana)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      # pana converts screenshots with the WebP tools.
+      - run: sudo apt-get update && sudo apt-get install -y webp
+      - run: flutter pub get
+      - run: dart pub global activate pana
+      - name: Score
+        run: dart pub global run pana --no-warning --exit-code-threshold 0 .

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:llm_markdown_renderer/parser.dart';
+import 'package:llm_markdown_renderer/src/parser/inline_parser.dart';
 
 List<Inline> inl(String s, {bool streaming = false}) =>
     parseInlines(s, streaming: streaming);

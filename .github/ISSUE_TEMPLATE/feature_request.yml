@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest something the package should support
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: Describe the use case, not only the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed solution or API
+  - type: textarea
+    id: sample
+    attributes:
+      label: Example Markdown (if it is about syntax)
+      render: markdown

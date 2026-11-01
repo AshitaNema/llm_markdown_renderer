@@ -164,7 +164,7 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
 
   void _detach() {
     _controller.removeListener(_onChanged);
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel());
     _subscription = null;
     if (_owned) _controller.dispose();
   }

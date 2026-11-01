@@ -102,6 +102,63 @@ List<InlineSpan> buildInlineSpans(
   return out;
 }
 
+bool _isRtlLetter(int c) =>
+    (c >= 0x0590 && c <= 0x08FF) ||
+    (c >= 0xFB1D && c <= 0xFDFF) ||
+    (c >= 0xFE70 && c <= 0xFEFF) ||
+    (c >= 0x10800 && c <= 0x10FFF) ||
+    (c >= 0x1E800 && c <= 0x1EFFF);
+
+bool _isLtrLetter(int c) =>
+    (c >= 0x41 && c <= 0x5A) ||
+    (c >= 0x61 && c <= 0x7A) ||
+    (c >= 0xC0 && c <= 0x58F) ||
+    (c >= 0x900 && c <= 0x1FFF) ||
+    (c >= 0x3040 && c <= 0xFB1C);
+
+/// The direction implied by the first strong character of [nodes]
+/// (the Unicode "first strong" heuristic), or `null` when there is none.
+///
+/// This lets a right-to-left paragraph (Arabic, Hebrew, …) be laid out and
+/// aligned right-to-left even inside an otherwise left-to-right app, which is
+/// common in LLM chat where the model answers in the user's language.
+TextDirection? detectTextDirection(List<Inline> nodes) {
+  TextDirection? found;
+  bool scan(String text) {
+    for (final c in text.runes) {
+      if (_isRtlLetter(c)) {
+        found = TextDirection.rtl;
+        return true;
+      }
+      if (_isLtrLetter(c)) {
+        found = TextDirection.ltr;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool walk(List<Inline> list) {
+    for (final node in list) {
+      final done = switch (node) {
+        InlineText(:final text) => scan(text),
+        InlineCode() => false,
+        InlineEmphasis(:final children) ||
+        InlineStrong(:final children) ||
+        InlineStrikethrough(:final children) ||
+        InlineLink(:final children) => walk(children),
+        InlineImage(:final alt) => scan(alt),
+        InlineLineBreak() || InlineSoftBreak() => false,
+      };
+      if (done) return true;
+    }
+    return false;
+  }
+
+  walk(nodes);
+  return found;
+}
+
 /// Renders inline Markdown content as a single [Text.rich].
 class InlineRichText extends StatefulWidget {
   /// Creates the widget.
@@ -155,9 +212,14 @@ class _InlineRichTextState extends State<InlineRichText> {
       context,
       _recognizers,
     );
-    return Text.rich(
+    final text = Text.rich(
       TextSpan(style: widget.style, children: spans),
       textAlign: widget.textAlign,
     );
+    final direction = detectTextDirection(widget.children);
+    if (direction == null || direction == Directionality.of(context)) {
+      return text;
+    }
+    return Directionality(textDirection: direction, child: text);
   }
 }

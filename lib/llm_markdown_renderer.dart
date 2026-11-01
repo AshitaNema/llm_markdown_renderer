@@ -21,7 +21,6 @@ export 'src/controller/markdown_stream_controller.dart';
 export 'src/theme/markdown_theme.dart';
 export 'src/theme/syntax_theme.dart';
 export 'src/widgets/code_block.dart' show CodeBlockView;
-export 'src/widgets/inline_renderer.dart' show isSafeLinkUrl;
 export 'src/widgets/render_config.dart'
     show MarkdownCodeBlockBuilder, MarkdownImageBuilder, MarkdownLinkCallback;
 export 'src/widgets/streaming_markdown.dart';

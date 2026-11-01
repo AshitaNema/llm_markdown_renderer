@@ -1,0 +1,36 @@
+# Publishes to pub.dev when a version tag such as v0.2.0 is pushed.
+#
+# One-time setup on pub.dev: package Admin tab -> Automated publishing ->
+# enable "Publish from GitHub Actions", repository AshitaNema/llm_markdown_renderer,
+# tag pattern v{{version}}. No secrets are stored in GitHub: authentication uses
+# GitHub's OIDC token.
+name: Publish to pub.dev
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # required for OIDC authentication with pub.dev
+    steps:
+      - uses: actions/checkout@v4
+      # setup-dart configures the OIDC credentials that `pub publish` uses.
+      - uses: dart-lang/setup-dart@v1
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - name: Tag must match pubspec version
+        run: |
+          version="$(grep '^version:' pubspec.yaml | awk '{print $2}')"
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match pubspec version $version"
+            exit 1
+          fi
+      - run: flutter pub get
+      - run: flutter test
+      - run: flutter pub publish --dry-run
+      - run: flutter pub publish --force

@@ -1,6 +1,19 @@
 # llm_markdown_renderer
 
+[![pub package](https://img.shields.io/pub/v/llm_markdown_renderer.svg)](https://pub.dev/packages/llm_markdown_renderer)
+[![pub points](https://img.shields.io/pub/points/llm_markdown_renderer)](https://pub.dev/packages/llm_markdown_renderer/score)
+[![likes](https://img.shields.io/pub/likes/llm_markdown_renderer)](https://pub.dev/packages/llm_markdown_renderer)
+[![CI](https://github.com/AshitaNema/llm_markdown_renderer/actions/workflows/ci.yml/badge.svg)](https://github.com/AshitaNema/llm_markdown_renderer/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/AshitaNema/llm_markdown_renderer/branch/main/graph/badge.svg)](https://codecov.io/gh/AshitaNema/llm_markdown_renderer)
+[![license: MIT](https://img.shields.io/github/license/AshitaNema/llm_markdown_renderer)](https://github.com/AshitaNema/llm_markdown_renderer/blob/main/LICENSE)
+
 Render Markdown that is streamed **token by token from an LLM** without jank.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/AshitaNema/llm_markdown_renderer/main/screenshots/demo.gif" alt="A chat app streaming Markdown with code blocks, tables and lists" width="320">
+</p>
+
+**[Try the live demo](https://ashitanema.github.io/llm_markdown_renderer/)**
 
 * **Incremental parsing.** Each chunk costs time proportional to the chunk plus
   the *one* block that is still being written. Finished blocks are never parsed
@@ -13,17 +26,20 @@ Render Markdown that is streamed **token by token from an LLM** without jank.
 * **Two APIs:** feed a `MarkdownStreamController` with `append(chunk)`, or hand
   the widget a `Stream<String>`.
 * **Themeable** through a `ThemeExtension` (`MarkdownTheme`), light and dark.
-* **Pure Dart + Flutter.** No plugins, no native code, no `dart:io`/`dart:html`:
-  Android, iOS, Web (including WebAssembly), Windows, macOS and Linux.
+* **No dependencies** beyond Flutter. Pure Dart, no native code: Android, iOS,
+  Web (including WebAssembly), Windows, macOS and Linux.
+* **Accessible and international:** semantic headings and lists, per-paragraph
+  right-to-left detection (Arabic, Hebrew), large text sizes.
 * The parser is **Flutter-free** (`package:llm_markdown_renderer/parser.dart`),
   so you can also use it from plain Dart.
 
-## Quick start
+## Install
 
-```yaml
-dependencies:
-  llm_markdown_renderer: ^0.1.0
+```sh
+flutter pub add llm_markdown_renderer
 ```
+
+## Quick start
 
 ### Controller API
 
@@ -57,6 +73,13 @@ one starts over. Handle failures with `onStreamError`.
 const StreamingMarkdown.static(data: '# Hello **world**')
 ```
 
+### Connecting a provider
+
+Recipes for Firebase AI Logic (`firebase_ai`), OpenAI-compatible servers and the
+Anthropic API (server-sent events) are in
+[doc/integrations.md](https://github.com/AshitaNema/llm_markdown_renderer/blob/main/doc/integrations.md).
+Anything that yields text chunks works.
+
 ### Links, images, code
 
 ```dart
@@ -68,13 +91,62 @@ StreamingMarkdown(
 )
 ```
 
-* Links are styled always, but only `http`, `https`, `mailto`, `tel` and
+* Links are always styled, but only `http`, `https`, `mailto`, `tel` and
   relative URLs are tappable; `javascript:` and friends are inert. The package
   never launches anything itself.
 * Images are **not fetched by default** (model output could point anywhere); an
   alt-text placeholder is shown until you supply an `imageBuilder`.
 * Replace the code block entirely with `codeBlockBuilder`, or reuse
   `CodeBlockView` in your own layout.
+
+## How it differs from re-rendering the whole text
+
+The usual way to show a streamed answer is to pass the growing string to a
+Markdown widget on every update. That re-parses and re-lays-out the entire
+message for every token, so the work per token grows with the length of the
+answer, and unfinished syntax flashes in and out: a stray `**`, a code fence
+that is not closed yet, a table that looks like text until its second line.
+
+This package is designed around the streaming case instead:
+
+* **Work per chunk does not grow with the message.** Only the block being
+  written is parsed again; see the numbers below.
+* **A chunking guarantee, enforced by tests.** For every way of splitting the
+  input into chunks (down to a single character, splitting fences, `\r\n` pairs
+  and emoji), the result equals parsing the input in one go.
+* **Finished blocks are never rebuilt.** They are the same objects in every
+  snapshot and their widgets are reused by identity.
+* **No dependencies.**
+
+## Performance
+
+`benchmark/append_cost.dart` compares what one streamed chunk costs with what
+re-parsing the whole text costs, as the document grows (each "block" is a
+heading, a paragraph, a list or a code block):
+
+| blocks | text size | incremental, per chunk | full re-parse, per chunk |
+|---:|---:|---:|---:|
+| 40 | 2 KB | 60 µs | 0.24 ms |
+| 400 | 17 KB | 53 µs | 1.0 ms |
+| 4,000 | 171 KB | 57 µs | 9.0 ms |
+| 40,000 | 1.7 MB | 234 µs | 104 ms |
+
+Measured with `dart run` (JIT) on an Apple M5, Dart 3.13.2. Absolute numbers
+will differ on your machine; the shape is what matters. The incremental cost is
+flat until the very large documents, where reading the snapshot (a copy of the
+list of block references, no parsing) starts to show. These numbers cover the
+parser; widget build and layout of the block being written are on top of that,
+and finished blocks add nothing.
+
+Reproduce:
+
+```sh
+dart run benchmark/append_cost.dart
+```
+
+Tips: pass **stable** callbacks and builders to `StreamingMarkdown` (new
+closures on every parent build make the configuration look changed and rebuild
+finished blocks), and keep `selectable: true` only where you need it.
 
 ## Theming
 
@@ -144,35 +216,43 @@ parser.append('ld**');
 parser.complete();
 ```
 
-The guarantee that the test-suite enforces: **for every way of splitting the
-input into chunks** (down to one character, splitting fences, `\r\n` pairs and
-UTF-16 surrogate pairs), the result equals parsing the input in one go.
+## Supported Markdown, limitations and FAQ
 
-## Supported Markdown and known differences
+Supported: ATX/setext headings, paragraphs, emphasis/strong/strikethrough,
+inline code, links, images, autolinks, fenced and indented code, block quotes,
+nested ordered/unordered lists, task lists, thematic breaks, GFM tables,
+backslash escapes and common entities.
 
-ATX/setext headings, paragraphs, emphasis/strong/strikethrough, inline code,
-links, images, autolinks, fenced and indented code, block quotes, nested
-ordered/unordered lists, task lists, thematic breaks, GFM tables, backslash
-escapes and common entities.
+**Not supported yet**
 
-Deliberate differences from CommonMark, to keep every append cheap:
+* **LaTeX math** (`$…$`, `$$…$$`). Models emit it often. It is the most likely
+  next feature, as an opt-in hook so the package does not take a math
+  dependency. Until then it is shown as plain text.
+* **Reference-style links** (`[text][ref]` with a `[ref]: url` definition).
+  They need the whole document, which is at odds with incremental parsing.
+* **Raw HTML.** It is never interpreted; it is shown as text.
+* **Footnotes**, definition lists and other extensions.
+
+**Deliberate differences from CommonMark**, to keep every append cheap:
 
 * Tight/loose is decided **per list item**, not per list.
-* Reference-style links (`[x][ref]`) and raw HTML are not supported (HTML is
-  shown as text).
 * A block quote is re-parsed as a whole while it is the open block.
-* Lists with sub-bullets indented by only 2 spaces under `1.` are treated as
-  nested, as most LLMs intend.
+* A sub-bullet indented by only 2 spaces under `1.` is treated as nested, as
+  most LLMs intend.
 
-## Performance notes
+**FAQ**
 
-* Parsing is synchronous and proportional to the new text plus the open block.
-* Finished blocks are the identical objects between snapshots and their widgets
-  are reused by identity.
-* Code blocks cache tokenization and layout per 32-line chunk.
-* Pass **stable** callbacks/builders to `StreamingMarkdown`; new closures on
-  every parent build make the configuration look changed and rebuild finished
-  blocks.
+*Does it work with `SelectionArea`?* `StreamingMarkdown` wraps its content in
+one by default (`selectable: true`). Set `selectable: false` if you provide your
+own.
+
+*Can I render a message that is already complete?* Yes: `StreamingMarkdown.static`.
+
+*Why are my images not showing?* Images are opt-in; see "Links, images, code".
+
+*How do I report a rendering bug?* Open an issue with the Markdown and, if you
+can, the chunk sizes you streamed it in. See
+[CONTRIBUTING.md](https://github.com/AshitaNema/llm_markdown_renderer/blob/main/CONTRIBUTING.md).
 
 ## Example
 
@@ -185,6 +265,11 @@ frame-time readout.
 cd example && flutter run
 ```
 
+## Architecture
+
+How the parser, the widgets and the guarantees fit together is described in
+[ARCHITECTURE.md](https://github.com/AshitaNema/llm_markdown_renderer/blob/main/ARCHITECTURE.md).
+
 ## License
 
-MIT, see [LICENSE](https://github.com/AshitaNema/llm_markdown_renderer/blob/main/LICENSE). Design notes are in [ARCHITECTURE.md](https://github.com/AshitaNema/llm_markdown_renderer/blob/main/ARCHITECTURE.md).
+MIT, see [LICENSE](https://github.com/AshitaNema/llm_markdown_renderer/blob/main/LICENSE).

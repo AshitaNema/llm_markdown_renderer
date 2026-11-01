@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsRole;
+
 import 'package:flutter/material.dart';
 
 import '../ast/block.dart';
@@ -147,16 +149,19 @@ class BlockView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = config.theme;
-    final Widget content = switch (block) {
+    final content = switch (block) {
       ParagraphBlock(:final children) => InlineRichText(
         children: children,
         style: textStyle,
         config: config,
       ),
-      HeadingBlock(:final level, :final children) => InlineRichText(
-        children: children,
-        style: theme.headingStyle(level),
-        config: config,
+      HeadingBlock(:final level, :final children) => Semantics(
+        header: true,
+        child: InlineRichText(
+          children: children,
+          style: theme.headingStyle(level),
+          config: config,
+        ),
       ),
       final CodeBlock code =>
         config.codeBlockBuilder?.call(context, code) ??
@@ -166,10 +171,10 @@ class BlockView extends StatelessWidget {
               highlighter: config.highlighter,
             ),
       BlockQuoteBlock(:final children) => Container(
-        padding: const EdgeInsets.only(left: 12),
+        padding: const EdgeInsetsDirectional.only(start: 12),
         decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(
+          border: BorderDirectional(
+            start: BorderSide(
               color: theme.blockquoteBarColor,
               width: theme.blockquoteBarWidth,
             ),
@@ -259,10 +264,13 @@ class _ListViewState extends State<_ListView> {
         ),
     ];
     _cache.endPass();
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: children,
+    return Semantics(
+      role: SemanticsRole.list,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: children,
+      ),
     );
   }
 }
@@ -298,28 +306,31 @@ class _ListItemView extends StatelessWidget {
             color: textStyle.color,
             semanticLabel: checked ? 'Checked' : 'Unchecked',
           );
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: theme.listIndent,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 6),
-            child: Align(
-              alignment: AlignmentDirectional.topEnd,
-              child: markerWidget,
+    return Semantics(
+      role: SemanticsRole.listItem,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: theme.listIndent,
+            child: Padding(
+              padding: const EdgeInsetsDirectional.only(end: 6),
+              child: Align(
+                alignment: AlignmentDirectional.topEnd,
+                child: markerWidget,
+              ),
             ),
           ),
-        ),
-        Expanded(
-          child: BlockColumn(
-            blocks: item.children,
-            config: config,
-            textStyle: textStyle,
-            gap: item.isLoose ? theme.blockSpacing : theme.listItemSpacing,
+          Expanded(
+            child: BlockColumn(
+              blocks: item.children,
+              config: config,
+              textStyle: textStyle,
+              gap: item.isLoose ? theme.blockSpacing : theme.listItemSpacing,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

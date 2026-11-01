@@ -114,11 +114,11 @@ void main() {
   test('block-level parse of 20k-token stream finishes quickly', () {
     final sw = Stopwatch()..start();
     final p = IncrementalMarkdownParser();
-    final text = [
-      for (var i = 0; i < 400; i++)
-        '## Section $i\n\nSome **bold** text with `code` and a [link](http://x.y).\n\n'
-            '- one\n- two\n\n```dart\nvoid f$i() {}\n```\n\n| a | b |\n|---|---|\n| $i | x |\n\n',
-    ].join();
+    String section(int i) =>
+        '## Section $i\n\nSome **bold** text with `code` and a '
+        '[link](http://x.y).\n\n- one\n- two\n\n```dart\nvoid f$i() {}\n```\n\n'
+        '| a | b |\n|---|---|\n| $i | x |\n\n';
+    final text = [for (var i = 0; i < 400; i++) section(i)].join();
     for (var i = 0; i < text.length; i += 3) {
       p.append(text.substring(i, i + 3 > text.length ? text.length : i + 3));
       p.document;
