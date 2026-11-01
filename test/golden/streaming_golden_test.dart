@@ -1,9 +1,40 @@
 @Tags(['golden'])
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:llm_markdown_renderer/llm_markdown_renderer.dart';
+
+/// Fraction of pixels allowed to differ (0.02 = 2%).
+///
+/// The images use the Ahem test font, so text is solid blocks and layout is
+/// identical everywhere, but the software rasterizer anti-aliases rounded
+/// corners and borders slightly differently on macOS, Linux and Windows. A
+/// real regression (changed layout, wrong colors, missing widgets) moves far
+/// more pixels than that, and a size change always fails.
+const _tolerance = 0.02;
+
+/// Flutter's documented "precision tolerance" comparator.
+class _TolerantComparator extends LocalFileComparator {
+  _TolerantComparator(super.testFile);
+
+  @override
+  Future<bool> compare(Uint8List imageBytes, Uri golden) async {
+    final result = await GoldenFileComparator.compareLists(
+      imageBytes,
+      await getGoldenBytes(golden),
+    );
+    if (result.passed || result.diffPercent <= _tolerance) {
+      result.dispose();
+      return true;
+    }
+    final error = await generateFailureOutput(result, golden, basedir);
+    result.dispose();
+    throw FlutterError(error);
+  }
+}
 
 /// A reply that is cut off mid-way: a finished heading, list and table, and a
 /// code fence that is still open with a half-written last line.
@@ -47,6 +78,15 @@ Future<void> _golden(
 }
 
 void main() {
+  setUpAll(() {
+    final current = goldenFileComparator;
+    if (current is LocalFileComparator) {
+      goldenFileComparator = _TolerantComparator(
+        current.basedir.resolve('streaming_golden_test.dart'),
+      );
+    }
+  });
+
   testWidgets('mid-stream snapshot, light theme', (tester) async {
     await _golden(tester, Brightness.light, 'streaming_light.png');
   });

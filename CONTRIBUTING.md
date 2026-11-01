@@ -45,9 +45,13 @@ proves what. In short: `lib/src/parser` is plain Dart (no Flutter imports),
 * **Keep the public API small.** Everything exported is something to keep stable.
   Put helpers under `lib/src` and do not export them without discussion.
 * **Document public members.** `public_member_api_docs` is an error.
-* **Golden tests** use the default test font so they are identical on every
-  platform. If a visual change is intended, regenerate with
+* **Golden tests** use the default test font and a 2% pixel tolerance (the
+  rasterizer differs slightly between operating systems), so they catch layout,
+  color and structure changes but not single-glyph ones; put fine-grained
+  assertions in widget tests. If a visual change is intended, regenerate with
   `flutter test --update-goldens test/golden` and review the images in the diff.
+  When a golden fails in CI, the diff images are attached to the run as an
+  artifact.
 
 ## Adding a highlighted language
 

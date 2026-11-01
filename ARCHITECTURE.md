@@ -291,7 +291,7 @@ differences, made so that every append stays cheap:
 | `test/widgets/streaming_markdown_test.dart` | The three constructors, finished blocks are not rebuilt, link safety, image placeholders, theme resolution order, table columns never shrink and never wrap mid-word (with real Roboto), stream errors, robustness while streaming. |
 | `test/widgets/code_block_test.dart` | Copy button and feedback, theme colors, language changes, chunked rendering of long blocks, custom builder. |
 | `test/widgets/accessibility_test.dart` | Semantics roles and labels, RTL layout and mirroring, large text scales. |
-| `test/golden/streaming_golden_test.dart` | A mid-stream snapshot (open fence, table, list) in light and dark, against `test/golden/goldens/*.png`. Rendered with the default test font so the images are identical on every platform. Regenerate with `flutter test --update-goldens test/golden`. |
+| `test/golden/streaming_golden_test.dart` | A mid-stream snapshot (open fence, table, list) in light and dark, against `test/golden/goldens/*.png`. Rendered with the default test font so layout is identical everywhere, and compared with a 2% pixel tolerance because the rasterizer anti-aliases edges slightly differently per operating system (a changed layout, color or missing widget moves far more pixels; a size change always fails). Regenerate with `flutter test --update-goldens test/golden`. |
 
 ## Benchmark
 
