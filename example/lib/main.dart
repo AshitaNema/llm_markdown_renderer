@@ -415,14 +415,24 @@ class _FrameStats {
   final ValueNotifier<String> label = ValueNotifier('frames: …');
   final List<double> _recent = [];
 
+  /// The first frames pay one-off costs (fonts, shaders, first layout) and
+  /// would dominate the "worst" figure for the next second, so they are not
+  /// counted.
+  int _warmUpFrames = 10;
+
   void start() => SchedulerBinding.instance.addTimingsCallback(_onTimings);
 
   void stop() => SchedulerBinding.instance.removeTimingsCallback(_onTimings);
 
   void _onTimings(List<FrameTiming> timings) {
     for (final t in timings) {
+      if (_warmUpFrames > 0) {
+        _warmUpFrames--;
+        continue;
+      }
       _recent.add(t.totalSpan.inMicroseconds / 1000);
     }
+    if (_recent.isEmpty) return;
     if (_recent.length > 60) _recent.removeRange(0, _recent.length - 60);
     final avg = _recent.reduce((a, b) => a + b) / _recent.length;
     final worst = _recent.reduce((a, b) => a > b ? a : b);

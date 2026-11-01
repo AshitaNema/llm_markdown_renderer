@@ -1,3 +1,7 @@
+## 0.2.1
+
+Add homepage, refresh the demo GIF, and fix the demo's frame-time readout and sample text.
+
 ## 0.2.0
 
 Breaking (pre-1.0): the public API is smaller.

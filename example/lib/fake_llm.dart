@@ -71,7 +71,7 @@ Here is a quick tour of what **llm_markdown_renderer** handles *while the text i
 
 ## Inline styles
 
-You get **bold**, *italic*, ~~strikethrough~~, `inline code` and [links](https://pub.dev). Bare URLs such as https://flutter.dev become links too. Half-typed syntax like **this one never flickers into asterisks.
+You get **bold**, *italic*, ~~strikethrough~~, `inline code` and [links](https://pub.dev). Bare URLs such as https://flutter.dev become links too. While it streams, half-typed syntax such as **this bold phrase never flickers into asterisks** as it arrives.
 
 ## A code block
 
