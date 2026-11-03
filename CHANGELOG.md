@@ -4,6 +4,8 @@ Add homepage, refresh the demo GIF, and fix the demo's frame-time readout and sa
 
 ## 0.2.0
 
+Tagged but not published to pub.dev; these changes shipped in 0.2.1.
+
 Breaking (pre-1.0): the public API is smaller.
 
 * `LineBuffer`, `parseInlines` and `isSafeLinkUrl` are no longer exported; they were implementation details. Use `IncrementalMarkdownParser` and `StreamingMarkdown` instead.

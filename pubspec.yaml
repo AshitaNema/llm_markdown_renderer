@@ -13,7 +13,7 @@ topics:
   - markdown
   - llm
   - streaming
-  - chat
+  - ai
   - syntax-highlighting
 
 environment:
