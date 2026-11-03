@@ -59,6 +59,8 @@ List<InlineSpan> buildInlineSpans(
         );
       case InlineCode(:final code):
         out.add(TextSpan(text: code, style: theme.inlineCodeStyle));
+      case final InlineCitation cite:
+        out.add(_citationSpan(cite, config, context, recognizers));
       case InlineMath(:final tex, :final display, :final isOpen):
         final builder = config.mathBuilder;
         if (builder == null || isOpen) {
@@ -118,6 +120,43 @@ List<InlineSpan> buildInlineSpans(
   return out;
 }
 
+InlineSpan _citationSpan(
+  InlineCitation cite,
+  MarkdownRenderConfig config,
+  BuildContext context,
+  List<GestureRecognizer>? recognizers,
+) {
+  final labels = cite.labels;
+  final builder = config.citationBuilder;
+  if (builder != null) {
+    return WidgetSpan(
+      alignment: PlaceholderAlignment.middle,
+      child: builder(context, labels),
+    );
+  }
+  final tap = config.onTapCitation;
+  if (tap == null || recognizers == null) {
+    return TextSpan(text: cite.source);
+  }
+  final children = <InlineSpan>[const TextSpan(text: '[')];
+  for (var k = 0; k < labels.length; k++) {
+    final label = labels[k];
+    final recognizer = TapGestureRecognizer()..onTap = () => tap(label);
+    recognizers.add(recognizer);
+    children.addAll([
+      if (k > 0) const TextSpan(text: ', '),
+      TextSpan(
+        text: label,
+        style: config.theme.linkStyle,
+        recognizer: recognizer,
+        mouseCursor: SystemMouseCursors.click,
+      ),
+    ]);
+  }
+  children.add(const TextSpan(text: ']'));
+  return TextSpan(children: children);
+}
+
 bool _isRtlLetter(int c) =>
     (c >= 0x0590 && c <= 0x08FF) ||
     (c >= 0xFB1D && c <= 0xFDFF) ||
@@ -158,7 +197,7 @@ TextDirection? detectTextDirection(List<Inline> nodes) {
     for (final node in list) {
       final done = switch (node) {
         InlineText(:final text) => scan(text),
-        InlineCode() || InlineMath() => false,
+        InlineCode() || InlineMath() || InlineCitation() => false,
         InlineEmphasis(:final children) ||
         InlineStrong(:final children) ||
         InlineStrikethrough(:final children) ||

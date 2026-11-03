@@ -98,8 +98,47 @@ StreamingMarkdown(
   never launches anything itself.
 * Images are **not fetched by default** (model output could point anywhere); an
   alt-text placeholder is shown until you supply an `imageBuilder`.
-* Replace the code block entirely with `codeBlockBuilder`, or reuse
-  `CodeBlockView` in your own layout.
+* Replace the code block with `codeBlockBuilder`, or reuse `CodeBlockView` in
+  your own layout. Return `null` from the builder to keep the default view, so
+  you can take over only some languages, for example Mermaid diagrams:
+
+  ```dart
+  codeBlockBuilder: (context, block) =>
+      block.language == 'mermaid' ? MyMermaidView(block.text) : null,
+  ```
+
+### Thinking sections and citations
+
+Reasoning models (DeepSeek R1, Qwen, …) start their reply with their chain of
+thought in `<think>…</think>`. It is shown as a collapsible "Thinking…"
+section that is open while the model thinks and folds to "Thoughts" when the
+section closes. Its content is ordinary Markdown, parsed incrementally like
+the rest. The tag only counts at the start of the reply, and `</think>` inside
+a code block is just code. The header labels are English; pass a
+`thinkingBuilder` to localize them.
+
+Citation markers such as `[1]`, `[1, 2]` and `[^note]` look like the original
+text until you make them interactive:
+
+```dart
+StreamingMarkdown(
+  controller: controller,
+  onTapCitation: (label) => showSource(label), // labels look like links
+  // or take over the look entirely:
+  citationBuilder: (context, labels) => SourceChip(labels),
+  thinkingBuilder: (context, block, content) => ExpansionTile(
+    title: Text(block.isOpen ? 'Thinking…' : 'Thought process'),
+    children: [content],
+  ),
+)
+```
+
+* Indexing (`array[1]`, `m[i][0]`), ranges (`[0, 1]`), links (`[1](url)`)
+  and definitions (`[1]: url`) are not citations. A partial `[1` is held
+  back while streaming, and a complete one waits for the next character, in
+  case it turns out to be a link or a definition.
+* Turn either off with `MarkdownParserOptions(citations: false)` or
+  `MarkdownParserOptions(thinking: false)`.
 
 ### LaTeX math
 
@@ -236,6 +275,8 @@ incremental highlighting possible.
 | `**bold` / `*em` / `` `code ``   | already styled (speculatively closed); a trailing `**` is hidden          |
 | `[label](http://ex`              | just the label; it becomes a link when `)` arrives                        |
 | `-`, `1.`, `#` alone on a line   | nothing, until there is something to show                                 |
+| `<think>` …                      | a "Thinking…" section from the moment the tag is complete; a partial `<thi` paints nothing |
+| `[1`                             | nothing, until `]` makes it a citation                                    |
 
 ## Using the parser without widgets
 
@@ -259,14 +300,15 @@ parser.complete();
 Supported: ATX/setext headings, paragraphs, emphasis/strong/strikethrough,
 inline code, links, images, autolinks, fenced and indented code, block quotes,
 nested ordered/unordered lists, task lists, thematic breaks, GFM tables,
-LaTeX math (`$…$`, `\(…\)`, `$$…$$`, `\[…\]` blocks), backslash escapes and
-common entities.
+LaTeX math (`$…$`, `\(…\)`, `$$…$$`, `\[…\]` blocks), `<think>` sections,
+citation markers, backslash escapes and common entities.
 
 **Not supported yet**
 
 * **Reference-style links** (`[text][ref]` with a `[ref]: url` definition).
   They need the whole document, which is at odds with incremental parsing.
-* **Raw HTML.** It is never interpreted; it is shown as text.
+* **Raw HTML.** It is never interpreted; it is shown as text (`<think>` is the
+  one exception).
 * **Footnotes**, definition lists and other extensions.
 
 **Deliberate differences from CommonMark**, to keep every append cheap:

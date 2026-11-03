@@ -12,7 +12,22 @@
 * Behavior change: with math on, `$x$`, `$$x$$` and `\(x\)`, and `$$` or
   `\[` blocks on their own lines, no longer render as literal text. Use `\$`
   for a literal dollar sign, or turn math off.
-* The example app typesets math with `flutter_math_fork`.
+* **Thinking sections.** `<think>…</think>` (and `<thinking>`) at the start of
+  a reply, as reasoning models emit it, becomes a `ThinkingBlock`, shown as a
+  collapsible section: open while the model thinks, folded to "Thoughts" once
+  the section closes. `</think>` inside code does not close it. Customize it with
+  `thinkingBuilder`. Its content is parsed incrementally, so long reasoning
+  stays cheap per token.
+* **Citations.** `[1]`, `[1, 2]` and `[^note]` become `InlineCitation`s. They
+  look like the original text unless you pass `onTapCitation` (tappable
+  labels) or `citationBuilder` (your own widget).
+* `codeBlockBuilder` may return `null` to keep the default view, so an app can
+  take over only some languages (for example `mermaid`). Type change:
+  `MarkdownCodeBlockBuilder` now returns `Widget?`; existing builders keep
+  working, but code that calls a stored builder must handle `null`.
+* New parser options `citations` and `thinking` (both on by default).
+* The example app typesets math with `flutter_math_fork` and shows a reply
+  with a thinking section and citations.
 * Docs: correct the claim that the parser can be used from plain Dart. It imports nothing from Flutter, but the package depends on the Flutter SDK.
 
 ## 0.2.2

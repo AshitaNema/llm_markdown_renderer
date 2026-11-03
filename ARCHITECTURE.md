@@ -43,7 +43,8 @@ lib/
     ast/
       block.dart                    sealed Block hierarchy: ParagraphBlock, HeadingBlock,
                                     CodeBlock, BlockQuoteBlock, ListBlock/ListItem,
-                                    MathBlock, TableBlock, ThematicBreakBlock
+                                    MathBlock, ThinkingBlock, TableBlock,
+                                    ThematicBreakBlock
       inline.dart                   sealed Inline hierarchy: InlineText, InlineStrong, …
       document.dart                 MarkdownDocument (immutable snapshot)
       equality.dart                 list equality helper for the value types
@@ -148,6 +149,9 @@ that nothing flashes and later text never has to "undo" what was painted.
 | A marker-only pending line (`-`, `1.`, `#`, `>`, `|`, …) | Hidden until it has content. |
 | `snake_case_word` | Never treated as emphasis. |
 | `$$` / `\[` block without its closer | Shown as TeX source in a code box; the app's `mathBuilder` is only called once the closer arrives. If a blank line (or the end of input) comes first, the lines are re-read as ordinary text. A partial closer (`$`, `\`) is hidden. |
+| `<thi`, `</thi`, `done.</thi` | Hidden until the tag is complete, also at the end of a line of text. A complete `<think>` immediately shows an empty, open thinking section. |
+| `[1]` at the very end | Plain text until the next character, which may make it a link (`(`) or a definition (`:`). |
+| `[1`, `[1, 2`, `[^no` | Hidden until `]` makes it a citation. |
 | `$\frac{a}{` | Shown as TeX source (open math), because `$\` is unambiguous. |
 | `$x^2 +`, `\(a +`, `$HOME`, `$5` | Stay text until a valid closer arrives, then become math once. Shell variables and prices never flash as math. A trailing `$` or `\` is hidden. |
 
@@ -163,6 +167,14 @@ For one `append(chunk)`:
 * committed blocks are untouched and keep their object identity;
 * reading `document` copies the list of block references: O(blocks), a pointer
   copy with no parsing.
+
+A `<think>` section is the one container with its own long-lived child engine
+(block quotes and list items re-run a child engine over their lines). Thinking
+sections are often thousands of tokens long, so they are parsed with the same
+cost model as the top level: only the open block inside them is re-parsed,
+finished blocks inside them keep their identity, and a snapshot copies the
+list of block references once (the preview of the pending line shares the
+real child engine's list instead of copying it).
 
 For one frame, `StreamingMarkdown` rebuilds only blocks whose object changed
 (see below). The [benchmark](#benchmark) measures the parser side.
@@ -254,7 +266,8 @@ Exported from `package:llm_markdown_renderer/llm_markdown_renderer.dart`:
   `CodeBlockView`;
 * theming: `MarkdownTheme`, `SyntaxTheme`;
 * callbacks: `MarkdownLinkCallback`, `MarkdownImageBuilder`,
-  `MarkdownCodeBlockBuilder`, `MarkdownMathBuilder`;
+  `MarkdownCodeBlockBuilder`, `MarkdownMathBuilder`, `MarkdownThinkingBuilder`,
+  `MarkdownCitationBuilder`, `MarkdownCitationCallback`;
 * everything in `parser.dart`.
 
 Exported from `package:llm_markdown_renderer/parser.dart` (no Flutter):
@@ -293,7 +306,7 @@ differences, made so that every append stays cheap:
 
 | File | Proves |
 |---|---|
-| `test/parser/chunk_boundary_test.dart` | Chunking independence for 20 fixtures: every 2-way split, one character at a time against every prefix, and random partitions all equal the one-shot parse. Plus CRLF/CR splits, surrogate pairs, fence and table-row splits, `complete()` mid-construct. |
+| `test/parser/chunk_boundary_test.dart` | Chunking independence for 22 fixtures: every 2-way split, one character at a time against every prefix, and random partitions all equal the one-shot parse. Plus CRLF/CR splits, surrogate pairs, fence and table-row splits, `complete()` mid-construct. |
 | `test/parser/incremental_test.dart` | Only the open block is parsed: per-append inline-parse count is the same for 10 and 1,500 paragraphs, committed blocks and list items keep identity, huge code blocks and tables are not re-parsed, plus a coarse bound against quadratic behavior. |
 | `test/parser/block_test.dart` | Block recognition and the streaming previews: headings, fences, lists (nesting, tasks, loose/tight), quotes, tables, hidden partial markers. |
 | `test/parser/inline_test.dart` | Inline syntax and the streaming mode (speculative closing, hidden partial links and delimiters). |
@@ -303,6 +316,8 @@ differences, made so that every append stays cheap:
 | `test/controller_test.dart` | Controller semantics, per-frame notification coalescing, disposal safety. |
 | `test/widgets/streaming_markdown_test.dart` | The three constructors, finished blocks are not rebuilt, link safety, image placeholders, theme resolution order, table columns never shrink and never wrap mid-word (with real Roboto), stream errors, robustness while streaming. |
 | `test/widgets/code_block_test.dart` | Copy button and feedback, theme colors, language changes, chunked rendering of long blocks, custom builder. |
+| `test/parser/thinking_citations_test.dart` | Citation markers and what is not one (links, definitions, indexing, ranges, tasks, escapes), `<think>` sections (same-line tags, case, only at the start of the reply, `</think>` inside code, text after the closing tag, unclosed), the streaming cases (hidden partial tags and markers), identity of finished blocks inside a section, and that an append costs the same in a 10- and a 1,500-paragraph section. |
+| `test/widgets/custom_builders_test.dart` | The default thinking view (expanded while thinking, collapsed when done, user toggle sticks, semantics), `thinkingBuilder`, citations by default / with `onTapCitation` / with `citationBuilder`, `codeBlockBuilder` returning `null`. |
 | `test/widgets/math_test.dart` | The TeX fallback without a builder, the builder for inline and display math, the builder never called for open math, finished math not rebuilt, wide math scrolling, math source staying left-to-right. |
 | `test/widgets/accessibility_test.dart` | Semantics roles and labels, RTL layout and mirroring, large text scales. |
 | `test/golden/streaming_golden_test.dart` | A mid-stream snapshot (open fence, table, list) in light and dark, against `test/golden/goldens/*.png`. Rendered with the default test font so layout is identical everywhere, and compared with a 2% pixel tolerance because the rasterizer anti-aliases edges slightly differently per operating system (a changed layout, color or missing widget moves far more pixels; a size change always fails). Regenerate with `flutter test --update-goldens test/golden`. |

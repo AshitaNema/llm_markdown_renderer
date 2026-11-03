@@ -24,8 +24,11 @@ export 'src/theme/syntax_theme.dart';
 export 'src/widgets/code_block.dart' show CodeBlockView;
 export 'src/widgets/render_config.dart'
     show
+        MarkdownCitationBuilder,
+        MarkdownCitationCallback,
         MarkdownCodeBlockBuilder,
         MarkdownImageBuilder,
         MarkdownLinkCallback,
-        MarkdownMathBuilder;
+        MarkdownMathBuilder,
+        MarkdownThinkingBuilder;
 export 'src/widgets/streaming_markdown.dart';

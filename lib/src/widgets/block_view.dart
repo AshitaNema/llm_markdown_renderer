@@ -194,6 +194,10 @@ class BlockView extends StatelessWidget {
       ),
       final TableBlock table => MarkdownTableView(block: table, config: config),
       final MathBlock math => _MathBlockView(block: math, config: config),
+      final ThinkingBlock thinking => _ThinkingView(
+        block: thinking,
+        config: config,
+      ),
       ThematicBreakBlock() => Container(
         height: theme.dividerThickness,
         margin: EdgeInsets.symmetric(vertical: theme.blockSpacing / 2),
@@ -242,6 +246,91 @@ class _MathBlockView extends StatelessWidget {
           child: Text(block.tex, style: theme.codeBlockStyle),
         ),
       ),
+    );
+  }
+}
+
+/// A `<think>` section: the app's [MarkdownRenderConfig.thinkingBuilder], or
+/// a header ("Thinking…" / "Thoughts") that toggles the content. Until the
+/// user toggles it, the content is shown while the model thinks and hidden
+/// once it is done.
+class _ThinkingView extends StatefulWidget {
+  const _ThinkingView({required this.block, required this.config});
+
+  final ThinkingBlock block;
+  final MarkdownRenderConfig config;
+
+  @override
+  State<_ThinkingView> createState() => _ThinkingViewState();
+}
+
+class _ThinkingViewState extends State<_ThinkingView> {
+  /// `null` until the user toggles; then their choice sticks.
+  bool? _expanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final block = widget.block;
+    final config = widget.config;
+    final theme = config.theme;
+    final style = theme.blockquoteStyle;
+    final content = BlockColumn(
+      blocks: block.children,
+      config: config,
+      textStyle: style,
+      gap: theme.blockSpacing,
+    );
+    final builder = config.thinkingBuilder;
+    if (builder != null) return builder(context, block, content);
+    final expanded = _expanded ?? block.isOpen;
+    final header = Semantics(
+      button: true,
+      expanded: expanded,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _expanded = !expanded),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  block.isOpen ? 'Thinking\u2026' : 'Thoughts',
+                  style: style,
+                ),
+                Icon(
+                  expanded ? Icons.expand_less : Icons.expand_more,
+                  size: (style.fontSize ?? 14) * 1.3,
+                  color: style.color,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Align(alignment: AlignmentDirectional.centerStart, child: header),
+        if (expanded && block.children.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsetsDirectional.only(start: 12),
+            decoration: BoxDecoration(
+              border: BorderDirectional(
+                start: BorderSide(
+                  color: theme.blockquoteBarColor,
+                  width: theme.blockquoteBarWidth,
+                ),
+              ),
+            ),
+            child: content,
+          ),
+      ],
     );
   }
 }
