@@ -2,7 +2,7 @@ name: llm_markdown_renderer
 description: >-
   Renders Markdown streamed token by token from an LLM without jank. Incremental
   parsing, stable partial code fences, tables and lists, syntax highlighting.
-version: 0.2.1
+version: 0.2.2
 homepage: https://ashitanema.github.io/llm_markdown_renderer/
 repository: https://github.com/AshitaNema/llm_markdown_renderer
 issue_tracker: https://github.com/AshitaNema/llm_markdown_renderer/issues

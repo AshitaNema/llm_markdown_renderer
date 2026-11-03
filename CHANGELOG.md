@@ -1,3 +1,7 @@
+## 0.2.2
+
+Replace the `chat` topic with `ai`, and give the web demo a real title and description.
+
 ## 0.2.1
 
 Add homepage, refresh the demo GIF, and fix the demo's frame-time readout and sample text.
