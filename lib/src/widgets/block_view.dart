@@ -193,6 +193,7 @@ class BlockView extends StatelessWidget {
         textStyle: textStyle,
       ),
       final TableBlock table => MarkdownTableView(block: table, config: config),
+      final MathBlock math => _MathBlockView(block: math, config: config),
       ThematicBreakBlock() => Container(
         height: theme.dividerThickness,
         margin: EdgeInsets.symmetric(vertical: theme.blockSpacing / 2),
@@ -202,6 +203,45 @@ class BlockView extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(top: topGap),
       child: RepaintBoundary(child: content),
+    );
+  }
+}
+
+/// Display math: typeset by [MarkdownRenderConfig.mathBuilder] and centered,
+/// or, without a builder or while still open, the TeX source in a code box.
+/// Wide content scrolls horizontally instead of overflowing.
+class _MathBlockView extends StatelessWidget {
+  const _MathBlockView({required this.block, required this.config});
+
+  final MathBlock block;
+  final MarkdownRenderConfig config;
+
+  @override
+  Widget build(BuildContext context) {
+    final builder = config.mathBuilder;
+    if (builder != null && !block.isOpen) {
+      return Center(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: builder(context, block.tex, true),
+        ),
+      );
+    }
+    final theme = config.theme;
+    return Directionality(
+      textDirection: TextDirection.ltr,
+      child: Container(
+        padding: theme.codeBlockPadding,
+        decoration: BoxDecoration(
+          color: theme.codeBlockBackground,
+          border: Border.all(color: theme.codeBlockBorderColor),
+          borderRadius: BorderRadius.circular(theme.codeBlockBorderRadius),
+        ),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Text(block.tex, style: theme.codeBlockStyle),
+        ),
+      ),
     );
   }
 }

@@ -40,6 +40,7 @@ class StreamingMarkdown extends StatefulWidget {
     this.onTapLink,
     this.imageBuilder,
     this.codeBlockBuilder,
+    this.mathBuilder,
     this.highlighter = const CodeHighlighter.defaults(),
   }) : stream = null,
        data = null,
@@ -62,6 +63,7 @@ class StreamingMarkdown extends StatefulWidget {
     this.onTapLink,
     this.imageBuilder,
     this.codeBlockBuilder,
+    this.mathBuilder,
     this.highlighter = const CodeHighlighter.defaults(),
   }) : controller = null,
        data = null;
@@ -76,6 +78,7 @@ class StreamingMarkdown extends StatefulWidget {
     this.onTapLink,
     this.imageBuilder,
     this.codeBlockBuilder,
+    this.mathBuilder,
     this.highlighter = const CodeHighlighter.defaults(),
   }) : controller = null,
        stream = null,
@@ -115,6 +118,10 @@ class StreamingMarkdown extends StatefulWidget {
 
   /// Replaces the default code block widget.
   final MarkdownCodeBlockBuilder? codeBlockBuilder;
+
+  /// Typesets LaTeX math. Without it the TeX source is shown in the code
+  /// style. See [MarkdownMathBuilder].
+  final MarkdownMathBuilder? mathBuilder;
 
   /// Tokenizes code for syntax highlighting.
   final CodeHighlighter highlighter;
@@ -221,6 +228,7 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
       onTapLink: widget.onTapLink,
       imageBuilder: widget.imageBuilder,
       codeBlockBuilder: widget.codeBlockBuilder,
+      mathBuilder: widget.mathBuilder,
     );
     final old = _config;
     // Keep the previous object when nothing changed so finished blocks stay
@@ -230,7 +238,8 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
         old.highlighter == next.highlighter &&
         old.onTapLink == next.onTapLink &&
         old.imageBuilder == next.imageBuilder &&
-        old.codeBlockBuilder == next.codeBlockBuilder) {
+        old.codeBlockBuilder == next.codeBlockBuilder &&
+        old.mathBuilder == next.mathBuilder) {
       return old;
     }
     return _config = next;

@@ -59,6 +59,22 @@ List<InlineSpan> buildInlineSpans(
         );
       case InlineCode(:final code):
         out.add(TextSpan(text: code, style: theme.inlineCodeStyle));
+      case InlineMath(:final tex, :final display, :final isOpen):
+        final builder = config.mathBuilder;
+        if (builder == null || isOpen) {
+          out.add(TextSpan(text: tex, style: theme.inlineCodeStyle));
+        } else {
+          // Scrolls (rather than overflowing) if wider than the line.
+          out.add(
+            WidgetSpan(
+              alignment: PlaceholderAlignment.middle,
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: builder(context, tex, display),
+              ),
+            ),
+          );
+        }
       case InlineLink(:final url, :final title, :final children):
         GestureRecognizer? recognizer;
         final tap = config.onTapLink;
@@ -142,7 +158,7 @@ TextDirection? detectTextDirection(List<Inline> nodes) {
     for (final node in list) {
       final done = switch (node) {
         InlineText(:final text) => scan(text),
-        InlineCode() => false,
+        InlineCode() || InlineMath() => false,
         InlineEmphasis(:final children) ||
         InlineStrong(:final children) ||
         InlineStrikethrough(:final children) ||

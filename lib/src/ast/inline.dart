@@ -103,6 +103,45 @@ final class InlineCode extends Inline {
   String toString() => 'Code($code)';
 }
 
+/// LaTeX math: `$…$` or `\(…\)` inline, `$$…$$` in display style.
+///
+/// (`\[…\]` is display math only as a block, see `MathBlock`; inside a
+/// paragraph `\[` stays an escaped bracket.)
+///
+/// Rendered by a `MarkdownMathBuilder` when the app supplies one; otherwise
+/// the TeX source is shown in the inline code style.
+final class InlineMath extends Inline {
+  /// Creates a math node.
+  const InlineMath(this.tex, {this.display = false, this.isOpen = false});
+
+  /// The TeX source, without the delimiters.
+  final String tex;
+
+  /// Whether this is display math (`$$…$$`).
+  final bool display;
+
+  /// Whether the closing delimiter has not arrived yet.
+  ///
+  /// Only happens while streaming, for math starting with `$\` (unambiguous
+  /// TeX such as `$\frac{a}{`); other unclosed math stays text until it
+  /// closes. [tex] is then probably incomplete, so renderers should show the
+  /// source rather than try to typeset it.
+  final bool isOpen;
+
+  @override
+  bool operator ==(Object other) =>
+      other is InlineMath &&
+      other.tex == tex &&
+      other.display == display &&
+      other.isOpen == isOpen;
+
+  @override
+  int get hashCode => Object.hash(InlineMath, tex, display, isOpen);
+
+  @override
+  String toString() => '${display ? 'DisplayMath' : 'Math'}($tex)';
+}
+
 /// A hyperlink: `[label](url "title")`, `<url>` or a bare `https://` URL.
 final class InlineLink extends Inline {
   /// Creates a link node.

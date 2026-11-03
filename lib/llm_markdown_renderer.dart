@@ -23,5 +23,9 @@ export 'src/theme/markdown_theme.dart';
 export 'src/theme/syntax_theme.dart';
 export 'src/widgets/code_block.dart' show CodeBlockView;
 export 'src/widgets/render_config.dart'
-    show MarkdownCodeBlockBuilder, MarkdownImageBuilder, MarkdownLinkCallback;
+    show
+        MarkdownCodeBlockBuilder,
+        MarkdownImageBuilder,
+        MarkdownLinkCallback,
+        MarkdownMathBuilder;
 export 'src/widgets/streaming_markdown.dart';

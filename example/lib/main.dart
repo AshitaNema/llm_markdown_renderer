@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:llm_markdown_renderer/llm_markdown_renderer.dart';
 
 import 'fake_llm.dart';
@@ -301,6 +302,7 @@ class _Bubble extends StatelessWidget {
             StreamingMarkdown(
               controller: message.controller!,
               onTapLink: onTapLink,
+              mathBuilder: _buildMath,
             ),
             const SizedBox(height: 8),
             Row(
@@ -440,3 +442,13 @@ class _FrameStats {
         'frame avg ${avg.toStringAsFixed(1)} ms · worst ${worst.toStringAsFixed(1)} ms';
   }
 }
+
+/// Typesets LaTeX with `flutter_math_fork`; malformed TeX falls back to the
+/// source. A top-level function is a stable reference, so finished blocks
+/// are not rebuilt when the bubble rebuilds.
+Widget _buildMath(BuildContext context, String tex, bool display) => Math.tex(
+  tex,
+  mathStyle: display ? MathStyle.display : MathStyle.text,
+  textStyle: DefaultTextStyle.of(context).style,
+  onErrorFallback: (error) => Text(tex),
+);

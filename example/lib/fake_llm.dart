@@ -175,4 +175,18 @@ Mixed content: an ordered list with code inside.
 
 That's all! Ask me again for a different example.
 ''',
+  r'''### Some math
+
+Inline math such as $e^{i\pi} + 1 = 0$ is typeset with the text, while
+prices like $5 and $10 stay as they are.
+
+The Gaussian integral:
+
+$$
+\int_{-\infty}^{\infty} e^{-x^2}\,dx = \sqrt{\pi}
+$$
+
+And the quadratic formula, \(x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}\), solves
+$ax^2 + bx + c = 0$.
+''',
 ];

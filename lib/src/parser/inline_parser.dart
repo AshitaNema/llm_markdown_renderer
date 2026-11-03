@@ -49,6 +49,11 @@ bool _isAsciiPunct(String ch) {
       (c >= 0x7B && c <= 0x7E);
 }
 
+bool _isDigit(String ch) {
+  final c = ch.codeUnitAt(0);
+  return c >= 0x30 && c <= 0x39;
+}
+
 bool _isAlnum(String ch) {
   final c = ch.codeUnitAt(0);
   return (c >= 0x30 && c <= 0x39) ||
@@ -79,7 +84,7 @@ class _Tail {
 
 class _InlineParser {
   _InlineParser(String source, this.streaming, this.options)
-    : s = streaming ? _trimPartial(source) : source,
+    : s = streaming ? _trimPartial(source, options) : source,
       n = 0 {
     n = s.length;
   }
@@ -96,10 +101,11 @@ class _InlineParser {
   /// Removes trailing syntax that is probably the start of a closing
   /// delimiter or of a link, so it is not painted for a frame and then
   /// restyled when the rest arrives.
-  static String _trimPartial(String t) {
+  static String _trimPartial(String t, MarkdownParserOptions options) {
     var s = t;
     var end = s.length;
-    while (end > 0 && '*_~'.contains(s[end - 1])) {
+    final partial = options.math ? r'*_~$' : '*_~';
+    while (end > 0 && partial.contains(s[end - 1])) {
       end--;
     }
     if (end < s.length) s = s.substring(0, end);
@@ -108,6 +114,7 @@ class _InlineParser {
     } else if (s.endsWith('[') || s.endsWith('<')) {
       s = s.substring(0, s.length - 1);
     }
+    if (options.math && s.endsWith(r'\')) s = s.substring(0, s.length - 1);
     return s;
   }
 
@@ -121,6 +128,8 @@ class _InlineParser {
           _newline();
         case '`':
           _backtick();
+        case r'$' when options.math:
+          _dollar();
         case '*' || '_' || '~':
           _delimRun();
         case '[':
@@ -156,6 +165,7 @@ class _InlineParser {
   void _backslash() {
     if (i + 1 < n) {
       final nx = s[i + 1];
+      if (options.math && nx == '(' && _texParen()) return;
       if (nx == '\n') {
         _flush();
         toks.add(const InlineLineBreak());
@@ -266,6 +276,99 @@ class _InlineParser {
     i = j;
   }
 
+  void _math(String tex, {required bool display, bool isOpen = false}) {
+    _flush();
+    toks.add(InlineMath(tex, display: display, isOpen: isOpen));
+  }
+
+  /// The position from which no `\)` follows, once a search has found none;
+  /// later openers past it skip the scan, so many unclosed `\(` stay linear.
+  int _noParenCloseFrom = -1;
+
+  /// `\(…\)` at [i]; returns whether it was consumed as math.
+  ///
+  /// Display math written as `\[…\]` is only recognised as a block (on its
+  /// own lines); inline, `\[` stays an escaped bracket.
+  bool _texParen() {
+    final from = i + 2;
+    if (_noParenCloseFrom >= 0 && from >= _noParenCloseFrom) return false;
+    final close = s.indexOf(r'\)', from);
+    if (close < 0) {
+      _noParenCloseFrom = from;
+      return false;
+    }
+    final tex = s.substring(from, close).trim();
+    if (tex.isEmpty) return false;
+    _math(tex, display: false);
+    i = close + 2;
+    return true;
+  }
+
+  /// `$…$` or `$$…$$` at [i].
+  ///
+  /// Without a closing delimiter the dollar stays text, also while
+  /// streaming: `$HOME` or `echo $$` must not flash as math. The one
+  /// exception is `$\`, which is unambiguous TeX (`$\frac{a}{`), shown as
+  /// open math while streaming.
+  void _dollar() {
+    if (i + 1 < n && s[i + 1] == r'$') {
+      final close = _findDollars(i + 2);
+      final tex = close < 0 ? '' : s.substring(i + 2, close).trim();
+      if (tex.isNotEmpty) {
+        _math(tex, display: true);
+        i = close + 2;
+      } else {
+        buf.write(r'$$');
+        i += 2;
+      }
+      return;
+    }
+    final next = i + 1 < n ? s[i + 1] : ' ';
+    final close = _isWs(next) ? -1 : _findDollar(i + 1);
+    if (close >= 0) {
+      _math(s.substring(i + 1, close), display: false);
+      i = close + 1;
+    } else if (streaming && close == -1 && next == r'\') {
+      _math(s.substring(i + 1).trim(), display: false, isOpen: true);
+      i = n;
+    } else {
+      buf.write(r'$');
+      i++;
+    }
+  }
+
+  /// Index of the next `$$` at or after [from] (skipping TeX escapes such
+  /// as `\$`), or -1.
+  int _findDollars(int from) {
+    for (var p = from; p < n - 1; p++) {
+      if (s[p] == r'\') {
+        p++;
+      } else if (s[p] == r'$' && s[p + 1] == r'$') {
+        return p;
+      }
+    }
+    return -1;
+  }
+
+  /// Index of the `$` closing inline math whose content starts at [from].
+  ///
+  /// Returns -1 when there is none, and -2 when a `$` that cannot close is
+  /// found first: then the opening `$` is most likely a price
+  /// (`$5 and $10`), so it is not treated as math even while streaming.
+  int _findDollar(int from) {
+    for (var p = from; p < n; p++) {
+      final c = s[p];
+      if (c == r'\') {
+        p++;
+      } else if (c == r'$') {
+        final closes =
+            p > from && !_isWs(s[p - 1]) && (p + 1 >= n || !_isDigit(s[p + 1]));
+        return closes ? p : -2;
+      }
+    }
+    return -1;
+  }
+
   /// Index of the `]` matching the `[` at [open], or -1.
   int _findClose(int open) {
     var depth = 0;
@@ -328,6 +431,8 @@ class _InlineParser {
             b.write(text);
           case InlineCode(:final code):
             b.write(code);
+          case InlineMath(:final tex):
+            b.write(tex);
           case InlineEmphasis(:final children) ||
               InlineStrong(:final children) ||
               InlineStrikethrough(:final children) ||

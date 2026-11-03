@@ -31,3 +31,4 @@ migrate_working_dir/
 /coverage/
 /demo.mp4
 coverage/
+/.claude/

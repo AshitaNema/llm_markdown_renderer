@@ -46,4 +46,27 @@ Final paragraph.
   'quote-lazy': '> quote\nlazy continuation\n\n> second\n> - item\n> - item2\n',
   'tabs': '-\titem\n\n\tcode?\n',
   'setext-vs-table': 'Header | Two\n--- | ---\ncell | cell\n',
+  'math':
+      r'''Euler: $e^{i\pi}+1=0$, costs $5 and $10, \$3 fee, so $$x^2$$ and \(a\) or \[b\].
+Formula:
+$$
+\int_0^1 x\,dx
+= \tfrac12
+$$
+
+$$E=mc^2$$
+
+\[
+a^2+b^2
+\]
+- item $y$
+- block:
+  $$
+  z
+  $$
+''',
+  'math-unclosed': r'''Value $\frac{a}{b and $$
+x = 1
+\\
+''',
 };
