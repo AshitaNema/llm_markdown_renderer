@@ -678,7 +678,8 @@ class _Engine {
 /// text plus the single still-open block; blocks that have been closed are
 /// never parsed again and keep their object identity across snapshots.
 ///
-/// The parser is independent of Flutter, so it can be used from plain Dart.
+/// The parser imports nothing from Flutter, so it can run in isolates, tests
+/// and Dart scripts.
 ///
 /// ```dart
 /// final parser = IncrementalMarkdownParser();

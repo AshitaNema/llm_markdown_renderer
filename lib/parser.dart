@@ -1,9 +1,11 @@
-/// A Flutter-free, incremental Markdown parser designed for LLM output that
-/// arrives in small chunks.
+/// An incremental Markdown parser designed for LLM output that arrives in
+/// small chunks.
 ///
-/// Import this library to use the parser from plain Dart (CLIs, servers,
-/// isolates). Flutter apps normally import `llm_markdown_renderer.dart`,
-/// which re-exports everything here.
+/// This library imports nothing from Flutter, so it can run in isolates,
+/// tests and Dart scripts. The package as a whole depends on the Flutter SDK,
+/// so a project using it must be built with Flutter installed. Flutter apps
+/// normally import `llm_markdown_renderer.dart`, which re-exports everything
+/// here.
 library;
 
 export 'src/ast/block.dart';

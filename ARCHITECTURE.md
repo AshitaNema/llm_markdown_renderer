@@ -31,7 +31,9 @@ guarantees it makes, and where the code for each part lives.
 
 Dependencies only point left to right. Everything up to and including
 `MarkdownDocument` is plain Dart with no Flutter import, so the parser can run
-in a CLI, on a server or in an isolate.
+in an isolate, a test or a Dart script. (The package itself depends on the
+Flutter SDK, so a pure-Dart project without Flutter installed cannot depend on
+it; splitting the parser into its own package would change that.)
 
 ```
 lib/

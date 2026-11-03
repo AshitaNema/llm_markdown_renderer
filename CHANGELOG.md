@@ -1,3 +1,7 @@
+## Unreleased
+
+* Docs: correct the claim that the parser can be used from plain Dart. It imports nothing from Flutter, but the package depends on the Flutter SDK.
+
 ## 0.2.2
 
 Replace the `chat` topic with `ai`, and give the web demo a real title and description.

@@ -30,8 +30,10 @@ Render Markdown that is streamed **token by token from an LLM** without jank.
   Web (including WebAssembly), Windows, macOS and Linux.
 * **Accessible and international:** semantic headings and lists, per-paragraph
   right-to-left detection (Arabic, Hebrew), large text sizes.
-* The parser is **Flutter-free** (`package:llm_markdown_renderer/parser.dart`),
-  so you can also use it from plain Dart.
+* The parser (`package:llm_markdown_renderer/parser.dart`) imports nothing
+  from Flutter, so it runs off the UI thread, in isolates and in Dart scripts.
+  The package still depends on the Flutter SDK, so the project using it must
+  be built with Flutter installed.
 
 ## Install
 
@@ -204,7 +206,12 @@ incremental highlighting possible.
 | `[label](http://ex`              | just the label; it becomes a link when `)` arrives                        |
 | `-`, `1.`, `#` alone on a line   | nothing, until there is something to show                                 |
 
-## Using the parser without Flutter
+## Using the parser without widgets
+
+`parser.dart` imports nothing from Flutter, so you can parse in an isolate, a
+test or a script and render the `MarkdownDocument` however you like. A
+project that depends on this package still needs the Flutter SDK installed,
+because the package as a whole depends on Flutter.
 
 ```dart
 import 'package:llm_markdown_renderer/parser.dart';

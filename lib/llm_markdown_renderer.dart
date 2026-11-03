@@ -2,8 +2,9 @@
 ///
 /// * [StreamingMarkdown] is the widget; feed it with a
 ///   [MarkdownStreamController] (`append(chunk)`) or a `Stream<String>`.
-/// * [IncrementalMarkdownParser] is the Flutter-free parser underneath. Only
-///   the block that is still being written is re-parsed for each chunk.
+/// * [IncrementalMarkdownParser] is the parser underneath (no Flutter
+///   imports, so it also runs in isolates). Only the block that is still
+///   being written is re-parsed for each chunk.
 /// * [MarkdownTheme] (a `ThemeExtension`) and [SyntaxTheme] style the output.
 /// * [CodeBlockView] is the highlighted code block with a copy button;
 ///   [CodeHighlighter] lets you swap the highlighting engine.
