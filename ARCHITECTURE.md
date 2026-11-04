@@ -311,6 +311,7 @@ differences, made so that every append stays cheap:
 | `test/parser/block_test.dart` | Block recognition and the streaming previews: headings, fences, lists (nesting, tasks, loose/tight), quotes, tables, hidden partial markers. |
 | `test/parser/inline_test.dart` | Inline syntax and the streaming mode (speculative closing, hidden partial links and delimiters). |
 | `test/parser/math_test.dart` | Inline and display math, Pandoc's dollar rules (prices stay text), escapes, math blocks in lists and quotes, and the streaming cases: open math, hidden partial delimiters, identity of closed math blocks. |
+| `test/parser/ast_test.dart` | Value semantics of every AST node: equality (ignoring block ids), `hashCode` and `toString`. |
 | `test/parser/line_buffer_test.dart` | Line splitting, CR/LF handling across chunks, surrogate hold-back. |
 | `test/highlight/highlighter_test.dart` | Every built-in language yields ordered, in-range tokens; multi-line state carries across lines; incremental equals one-shot; custom languages. |
 | `test/controller_test.dart` | Controller semantics, per-frame notification coalescing, disposal safety. |
