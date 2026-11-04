@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:math' as math;
 
 import '../ast/block.dart';
@@ -24,6 +25,10 @@ final RegExp _hideShortRe = RegExp(
 );
 final RegExp _mathOpenRe = RegExp(r'^ {0,3}(\$\$(?!\$)|\\\[)(.*)$');
 final RegExp _hideMathCloseRe = RegExp(r'^\s*(?:\$\$?|\\\]?)\s*$');
+final RegExp _thinkOpenRe = RegExp(
+  r'^ {0,3}<(think|thinking)>',
+  caseSensitive: false,
+);
 final RegExp _hideDashesRe = RegExp(r'^[|\-:=\s]+$');
 final RegExp _hideFenceRe = RegExp(r'^ {0,3}[`~]+$');
 final RegExp _leadingMarkersRe = RegExp(r'^[ \t>]+');
@@ -80,6 +85,39 @@ class _MathOpen extends _Open {
   final List<String> lines;
   @override
   _MathOpen clone() => _MathOpen(id, closer, openLine, List.of(lines));
+}
+
+/// A `<think>` section. Unlike quotes, its content is parsed by a child
+/// engine that lives as long as the section, so each append costs the same
+/// however long the model has been thinking, and finished blocks inside it
+/// keep their identity.
+class _ThinkOpen extends _Open {
+  _ThinkOpen(super.id, this.tag, this.child);
+  final String tag;
+  final _Engine child;
+
+  late final String closeTag = '</$tag>';
+  late final RegExp _closeStartRe = RegExp(
+    '^\\s*${RegExp.escape(closeTag)}',
+    caseSensitive: false,
+  );
+  late final RegExp _closeEndRe = RegExp(
+    '${RegExp.escape(closeTag)}\\s*\$',
+    caseSensitive: false,
+  );
+
+  /// The closing tag on [line], if it starts or ends the line (`</think>`,
+  /// `…done.</think>`, `</think> The answer`) and the section is not inside
+  /// a code block, where `</think>` is just code.
+  Match? closeIn(String line) {
+    final c = child.open;
+    if (c is _FenceOpen || (c is _ListOpen && c.cur.inFence)) return null;
+    if (c is _CodeOpen && _indentOf(line) >= 4) return null;
+    return _closeStartRe.firstMatch(line) ?? _closeEndRe.firstMatch(line);
+  }
+
+  @override
+  _ThinkOpen clone() => _ThinkOpen(id, tag, _Engine._preview(child));
 }
 
 class _QuoteOpen extends _Open {
@@ -305,7 +343,8 @@ class _Engine {
       parentId = base.parentId,
       isPreview = true,
       seq = base.seq,
-      open = base.open?.clone();
+      open = base.open?.clone(),
+      inherited = base.committed;
 
   final MarkdownParserOptions options;
   final _Counters counters;
@@ -315,8 +354,18 @@ class _Engine {
   final bool isPreview;
 
   final List<Block> committed = [];
+
+  /// For the preview of a thinking section's child engine: the real engine's
+  /// committed blocks, shared rather than copied; [committed] then only holds
+  /// what the preview adds.
+  List<Block> inherited = const [];
   _Open? open;
   int seq = 0;
+
+  /// Reasoning models emit `<think>` only at the very start of a reply, so a
+  /// section can only open before anything else (at the top level). A
+  /// sentence that merely starts with the tag later on stays text.
+  bool get _thinkingAllowed => options.thinking && parentId == null && seq == 0;
 
   int _newId() {
     final k = seq++;
@@ -346,6 +395,17 @@ class _Engine {
           _closeOpen();
         } else {
           f.lines.add(_stripIndent(line, f.indent));
+        }
+      case final _ThinkOpen th:
+        final close = th.closeIn(line);
+        if (close == null) {
+          th.child.feed(line);
+        } else {
+          final before = line.substring(0, close.start).trimRight();
+          if (before.trim().isNotEmpty) th.child.feed(before);
+          _closeOpen();
+          final after = line.substring(close.end).trimLeft();
+          if (after.isNotEmpty) _start(after);
         }
       case final _MathOpen m:
         final t = line.trim();
@@ -404,6 +464,18 @@ class _Engine {
         fm[1]!.length,
         fm[3]!,
       );
+      return;
+    }
+    final tm = _thinkingAllowed ? _thinkOpenRe.firstMatch(line) : null;
+    if (tm != null) {
+      final id = _newId();
+      open = _ThinkOpen(
+        id,
+        tm[1]!.toLowerCase(),
+        _Engine(options, counters, parentId: id, isPreview: isPreview),
+      );
+      final rest = line.substring(tm.end).trimLeft();
+      if (rest.isNotEmpty) feed(rest);
       return;
     }
     final mm = options.math ? _mathStart(line) : null;
@@ -678,6 +750,19 @@ class _Engine {
           info: f.info,
           language: _languageOf(f.info),
         );
+      case final _ThinkOpen th:
+        final c = th.child;
+        if (!streaming) c.finish();
+        final co = c.open;
+        return ThinkingBlock(
+          id: th.id,
+          isOpen: streaming,
+          children: UnmodifiableListView([
+            ...c.inherited,
+            ...c.committed,
+            if (streaming && co != null) c._snap(co, streaming: true),
+          ]),
+        );
       case final _MathOpen m:
         return MathBlock(
           id: m.id,
@@ -754,6 +839,15 @@ class _Engine {
     final o = open;
     if (o is _FenceOpen) return _hideFenceRe.hasMatch(pending);
     if (o is _MathOpen) return _hideMathCloseRe.hasMatch(pending);
+    if (o is _ThinkOpen) {
+      return _isTagPrefix(pending, '</${o.tag}>') ||
+          o.child._hidePending(pending);
+    }
+    if (_thinkingAllowed &&
+        (_isTagPrefix(pending, '<think>') ||
+            _isTagPrefix(pending, '<thinking>'))) {
+      return true;
+    }
     final s = pending.replaceFirst(_leadingMarkersRe, '');
     if (s.isEmpty) return true;
     if (_hideShortRe.hasMatch(s)) return true;
@@ -761,9 +855,34 @@ class _Engine {
         _hideDashesRe.hasMatch(s);
   }
 
+  /// [pending] without a trailing start of [tag] (`done.</thi`), so the
+  /// partial tag is not painted as text for a few frames. Only the last few
+  /// characters are looked at.
+  static String _withoutPartialTag(String pending, String tag) {
+    final lower = pending.length > tag.length
+        ? pending.substring(pending.length - tag.length).toLowerCase()
+        : pending.toLowerCase();
+    for (var k = 2; k < tag.length && k <= lower.length; k++) {
+      if (tag.startsWith(lower.substring(lower.length - k))) {
+        return pending.substring(0, pending.length - k);
+      }
+    }
+    return pending;
+  }
+
+  /// Whether [pending] is the start of [tag] (`<thi` for `<think>`), which
+  /// would be painted as text for a few frames otherwise.
+  static bool _isTagPrefix(String pending, String tag) {
+    if (pending.length > tag.length + 8) return false;
+    final p = pending.trim().toLowerCase();
+    return p.isNotEmpty && p.length < tag.length && tag.startsWith(p);
+  }
+
   /// The not-yet-committed blocks, including a speculative rendering of the
   /// unterminated [pending] line.
   List<Block> tail(String pending) {
+    final o0 = open;
+    if (o0 is _ThinkOpen) pending = _withoutPartialTag(pending, o0.closeTag);
     if (pending.trim().isEmpty || _hidePending(pending)) {
       final o = open;
       return [if (o != null) _snap(o, streaming: true)];

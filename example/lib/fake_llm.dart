@@ -189,4 +189,21 @@ $$
 And the quadratic formula, \(x = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}\), solves
 $ax^2 + bx + c = 0$.
 ''',
+  r'''<think>
+The user wants to know why Flutter apps jank while an answer streams.
+
+Likely causes:
+
+- re-parsing the **whole** message on every token
+- rebuilding every widget, even finished paragraphs
+
+Answer with the cause first, then cite the sources.
+</think>
+
+Streaming jank usually comes from re-parsing the whole message for every
+token [1], which gets slower as the answer grows [1, 2]. Rendering only the
+block that is still being written keeps each token cheap [3].
+
+Tap a citation, or the "Thoughts" header above to see the reasoning again.
+''',
 ];

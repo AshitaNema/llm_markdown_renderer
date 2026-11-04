@@ -142,6 +142,37 @@ final class InlineMath extends Inline {
   String toString() => '${display ? 'DisplayMath' : 'Math'}($tex)';
 }
 
+/// A citation marker such as `[1]`, `[1, 2]` or `[^1]`, as emitted by
+/// models that cite sources.
+///
+/// Rendered as its [source] text unless the app supplies a citation builder
+/// or tap callback.
+final class InlineCitation extends Inline {
+  /// Creates a citation. [source] defaults to `[labels joined by ", "]`.
+  const InlineCitation(this.labels, {String? source}) : _source = source;
+
+  /// The cited labels, in order and without `^`: `[1, 2]` gives `['1', '2']`.
+  final List<String> labels;
+
+  final String? _source;
+
+  /// The marker as written, such as `[1,2]` or `[^note]`.
+  String get source => _source ?? '[${labels.join(', ')}]';
+
+  @override
+  bool operator ==(Object other) =>
+      other is InlineCitation &&
+      other.source == source &&
+      listEquals(labels, other.labels);
+
+  @override
+  int get hashCode =>
+      Object.hash(InlineCitation, source, Object.hashAll(labels));
+
+  @override
+  String toString() => 'Cite(${labels.join(',')})';
+}
+
 /// A hyperlink: `[label](url "title")`, `<url>` or a bare `https://` URL.
 final class InlineLink extends Inline {
   /// Creates a link node.

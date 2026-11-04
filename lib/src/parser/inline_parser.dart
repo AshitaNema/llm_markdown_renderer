@@ -18,6 +18,13 @@ final RegExp _punctRe = RegExp(r'[\p{P}\p{S}]', unicode: true);
 final RegExp _entityRe = RegExp(
   r'&(#[xX][0-9a-fA-F]{1,6}|#[0-9]{1,7}|[A-Za-z]{2,8});',
 );
+final RegExp _citationRe = RegExp(
+  r'\[(\^[A-Za-z0-9_-]{1,32}|\d{1,3}(?:[ \t]*,[ \t]*\d{1,3})*)\]',
+);
+final RegExp _partialCitationRe = RegExp(
+  r'\[(?:\^[A-Za-z0-9_-]{0,32}|\d{1,3}(?:[ \t]*,[ \t]*\d{1,3})*[ \t]*,?[ \t]*)$',
+);
+final RegExp _wordCharRe = RegExp(r'[\p{L}\p{N}]', unicode: true);
 final RegExp _angleAutolinkRe = RegExp(
   r'<([A-Za-z][A-Za-z0-9+.\-]{1,31}:[^\s<>]*)>',
 );
@@ -115,6 +122,21 @@ class _InlineParser {
       s = s.substring(0, s.length - 1);
     }
     if (options.math && s.endsWith(r'\')) s = s.substring(0, s.length - 1);
+    if (options.citations) {
+      // Only the last `[` can start a partial marker; checking just that one
+      // keeps this O(1) instead of a regex scan of the whole open block.
+      var at = s.length - 1;
+      final stop = s.length > 40 ? s.length - 40 : 0;
+      while (at >= stop && s.codeUnitAt(at) != 0x5B) {
+        at--;
+      }
+      if (at >= stop &&
+          _partialCitationRe.matchAsPrefix(s, at) != null &&
+          !(at > 0 && s[at - 1] == r'\') &&
+          (s.startsWith('[^', at) || !_gluedBefore(s, at))) {
+        s = s.substring(0, at);
+      }
+    }
     return s;
   }
 
@@ -386,7 +408,41 @@ class _InlineParser {
     return -1;
   }
 
+  /// Where the last citation ended, so `[1][2]` is two citations while
+  /// `m[i][0]` is none.
+  int _citationEnd = -1;
+
+  /// Whether the text before [at] makes a `[` index something (`array[1]`,
+  /// `split()[0]`, `数组[1]`) rather than start a citation.
+  static bool _gluedBefore(String s, int at) {
+    if (at == 0) return false;
+    final prev = s[at - 1];
+    return prev == ']' || prev == ')' || _wordCharRe.hasMatch(prev);
+  }
+
+  /// A citation such as `[1]`, `[1, 2]` or `[^note]` at [i]; returns
+  /// whether it was consumed.
+  bool _citation() {
+    final m = _citationRe.matchAsPrefix(s, i);
+    if (m == null) return false;
+    final body = m[1]!;
+    final footnote = body.startsWith('^');
+    if (!footnote && i != _citationEnd && _gluedBefore(s, i)) return false;
+    if (m.end < n && (s[m.end] == '(' || s[m.end] == ':')) return false;
+    // While streaming, the next character may still be `(` or `:`.
+    if (streaming && m.end == n) return false;
+    final labels = footnote
+        ? [body.substring(1)]
+        : [for (final l in body.split(',')) l.trim()];
+    if (labels.contains('0')) return false; // `[0, 1]` is a range
+    _flush();
+    toks.add(InlineCitation(labels, source: m[0]));
+    i = _citationEnd = m.end;
+    return true;
+  }
+
   void _bracket({required bool image}) {
+    if (!image && options.citations && _citation()) return;
     final open = image ? i + 1 : i;
     final close = _findClose(open);
     final literal = image ? '![' : '[';
@@ -433,6 +489,8 @@ class _InlineParser {
             b.write(code);
           case InlineMath(:final tex):
             b.write(tex);
+          case InlineCitation(:final source):
+            b.write(source);
           case InlineEmphasis(:final children) ||
               InlineStrong(:final children) ||
               InlineStrikethrough(:final children) ||

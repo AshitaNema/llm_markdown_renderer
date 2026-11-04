@@ -168,6 +168,36 @@ final class MathBlock extends Block {
   String toString() => 'MathBlock(${tex.replaceAll('\n', r'\n')})';
 }
 
+/// The reasoning of a "thinking" model: `<think>…</think>` (or
+/// `<thinking>…</thinking>`), as emitted by DeepSeek R1, Qwen and others.
+///
+/// Its content is ordinary Markdown. While [isOpen] the model is still
+/// thinking; a section that never closes ends with the input.
+final class ThinkingBlock extends Block {
+  /// Creates a thinking section.
+  const ThinkingBlock({
+    required super.id,
+    required super.isOpen,
+    required this.children,
+  });
+
+  /// The blocks inside the section.
+  final List<Block> children;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ThinkingBlock &&
+      other.isOpen == isOpen &&
+      listEquals(children, other.children);
+
+  @override
+  int get hashCode =>
+      Object.hash(ThinkingBlock, isOpen, Object.hashAll(children));
+
+  @override
+  String toString() => 'Thinking($children)';
+}
+
 /// A block quote: `> text`.
 final class BlockQuoteBlock extends Block {
   /// Creates a block quote.

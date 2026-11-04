@@ -41,6 +41,9 @@ class StreamingMarkdown extends StatefulWidget {
     this.imageBuilder,
     this.codeBlockBuilder,
     this.mathBuilder,
+    this.thinkingBuilder,
+    this.citationBuilder,
+    this.onTapCitation,
     this.highlighter = const CodeHighlighter.defaults(),
   }) : stream = null,
        data = null,
@@ -64,6 +67,9 @@ class StreamingMarkdown extends StatefulWidget {
     this.imageBuilder,
     this.codeBlockBuilder,
     this.mathBuilder,
+    this.thinkingBuilder,
+    this.citationBuilder,
+    this.onTapCitation,
     this.highlighter = const CodeHighlighter.defaults(),
   }) : controller = null,
        data = null;
@@ -79,6 +85,9 @@ class StreamingMarkdown extends StatefulWidget {
     this.imageBuilder,
     this.codeBlockBuilder,
     this.mathBuilder,
+    this.thinkingBuilder,
+    this.citationBuilder,
+    this.onTapCitation,
     this.highlighter = const CodeHighlighter.defaults(),
   }) : controller = null,
        stream = null,
@@ -122,6 +131,19 @@ class StreamingMarkdown extends StatefulWidget {
   /// Typesets LaTeX math. Without it the TeX source is shown in the code
   /// style. See [MarkdownMathBuilder].
   final MarkdownMathBuilder? mathBuilder;
+
+  /// Renders `<think>…</think>` sections. Without it, a collapsible section
+  /// is shown. See [MarkdownThinkingBuilder].
+  final MarkdownThinkingBuilder? thinkingBuilder;
+
+  /// Renders citation markers such as `[1]`. Takes precedence over
+  /// [onTapCitation]. See [MarkdownCitationBuilder].
+  final MarkdownCitationBuilder? citationBuilder;
+
+  /// Called when a citation label is tapped; makes the labels look like
+  /// links. Without it (and without [citationBuilder]) citations look like
+  /// the original text.
+  final MarkdownCitationCallback? onTapCitation;
 
   /// Tokenizes code for syntax highlighting.
   final CodeHighlighter highlighter;
@@ -229,6 +251,9 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
       imageBuilder: widget.imageBuilder,
       codeBlockBuilder: widget.codeBlockBuilder,
       mathBuilder: widget.mathBuilder,
+      thinkingBuilder: widget.thinkingBuilder,
+      citationBuilder: widget.citationBuilder,
+      onTapCitation: widget.onTapCitation,
     );
     final old = _config;
     // Keep the previous object when nothing changed so finished blocks stay
@@ -239,7 +264,10 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
         old.onTapLink == next.onTapLink &&
         old.imageBuilder == next.imageBuilder &&
         old.codeBlockBuilder == next.codeBlockBuilder &&
-        old.mathBuilder == next.mathBuilder) {
+        old.mathBuilder == next.mathBuilder &&
+        old.thinkingBuilder == next.thinkingBuilder &&
+        old.citationBuilder == next.citationBuilder &&
+        old.onTapCitation == next.onTapCitation) {
       return old;
     }
     return _config = next;

@@ -65,6 +65,9 @@ a^2+b^2
   z
   $$
 ''',
+  'thinking':
+      '<think>\nThe user asks for X.\n\n- check **A**\n- check B\n\n```py\nx = 1\n```\nDone.</think>\n\nThe answer [1] is 42 [1, 2][^note].\n\n<thinking>\nmore\n</thinking>\nEnd, see array[1] and [1](http://x.y).\n',
+  'thinking-unclosed': '<think>\nStill thinking about [2',
   'math-unclosed': r'''Value $\frac{a}{b and $$
 x = 1
 \\

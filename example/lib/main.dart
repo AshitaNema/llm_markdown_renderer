@@ -234,6 +234,10 @@ class _ChatPageState extends State<ChatPage> {
                 onTapLink: (url, title) => ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(SnackBar(content: Text('Tapped link: $url'))),
+                onTapCitation: (label) =>
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Tapped source [$label]')),
+                    ),
               ),
             ),
           ),
@@ -256,12 +260,14 @@ class _Bubble extends StatelessWidget {
   const _Bubble({
     required this.message,
     required this.onTapLink,
+    required this.onTapCitation,
     this.onRegenerate,
     this.onStop,
   });
 
   final _Message message;
   final MarkdownLinkCallback onTapLink;
+  final MarkdownCitationCallback onTapCitation;
   final VoidCallback? onRegenerate;
   final VoidCallback? onStop;
 
@@ -302,6 +308,7 @@ class _Bubble extends StatelessWidget {
             StreamingMarkdown(
               controller: message.controller!,
               onTapLink: onTapLink,
+              onTapCitation: onTapCitation,
               mathBuilder: _buildMath,
             ),
             const SizedBox(height: 8),
