@@ -43,7 +43,7 @@ lib/
     ast/
       block.dart                    sealed Block hierarchy: ParagraphBlock, HeadingBlock,
                                     CodeBlock, BlockQuoteBlock, ListBlock/ListItem,
-                                    TableBlock, ThematicBreakBlock
+                                    MathBlock, TableBlock, ThematicBreakBlock
       inline.dart                   sealed Inline hierarchy: InlineText, InlineStrong, …
       document.dart                 MarkdownDocument (immutable snapshot)
       equality.dart                 list equality helper for the value types
@@ -147,6 +147,9 @@ that nothing flashes and later text never has to "undo" what was painted.
 | `[label](http://ex` | Only the label is shown; it becomes a link when `)` arrives. An incomplete image is hidden. |
 | A marker-only pending line (`-`, `1.`, `#`, `>`, `|`, …) | Hidden until it has content. |
 | `snake_case_word` | Never treated as emphasis. |
+| `$$` / `\[` block without its closer | Shown as TeX source in a code box; the app's `mathBuilder` is only called once the closer arrives. If a blank line (or the end of input) comes first, the lines are re-read as ordinary text. A partial closer (`$`, `\`) is hidden. |
+| `$\frac{a}{` | Shown as TeX source (open math), because `$\` is unambiguous. |
+| `$x^2 +`, `\(a +`, `$HOME`, `$5` | Stay text until a valid closer arrives, then become math once. Shell variables and prices never flash as math. A trailing `$` or `\` is hidden. |
 
 When the stream is completed (`complete()`), speculative constructs that never
 closed become literal text, exactly as in a one-shot parse.
@@ -251,7 +254,7 @@ Exported from `package:llm_markdown_renderer/llm_markdown_renderer.dart`:
   `CodeBlockView`;
 * theming: `MarkdownTheme`, `SyntaxTheme`;
 * callbacks: `MarkdownLinkCallback`, `MarkdownImageBuilder`,
-  `MarkdownCodeBlockBuilder`;
+  `MarkdownCodeBlockBuilder`, `MarkdownMathBuilder`;
 * everything in `parser.dart`.
 
 Exported from `package:llm_markdown_renderer/parser.dart` (no Flutter):
@@ -273,7 +276,14 @@ differences, made so that every append stays cheap:
 
 * Tight and loose are decided **per list item**, not per list.
 * Reference-style links (`[x][ref]`) and raw HTML are not supported.
-* Math (`$…$`) is not rendered.
+* Math follows Pandoc, not CommonMark (which has no math): an opening `$` must
+  be followed by a non-space, a closing `$` preceded by a non-space and not
+  followed by a digit, and a `$` that cannot close ends the search (so
+  `$5 and $10` is text). Beyond Pandoc's defaults, `\(…\)` is inline math
+  and `\[` alone on a line opens a display block, because models emit both;
+  inside a paragraph `\[` stays an escaped bracket. A `$$` or `\[` line
+  interrupts a paragraph; a block with a blank line before its closer is not
+  math and is re-read as text.
 * A list item under `1.` indented by only two spaces is treated as nested,
   because that is what models intend.
 * A list ends at a blank line followed by unindented text; setext headings and
@@ -287,11 +297,13 @@ differences, made so that every append stays cheap:
 | `test/parser/incremental_test.dart` | Only the open block is parsed: per-append inline-parse count is the same for 10 and 1,500 paragraphs, committed blocks and list items keep identity, huge code blocks and tables are not re-parsed, plus a coarse bound against quadratic behavior. |
 | `test/parser/block_test.dart` | Block recognition and the streaming previews: headings, fences, lists (nesting, tasks, loose/tight), quotes, tables, hidden partial markers. |
 | `test/parser/inline_test.dart` | Inline syntax and the streaming mode (speculative closing, hidden partial links and delimiters). |
+| `test/parser/math_test.dart` | Inline and display math, Pandoc's dollar rules (prices stay text), escapes, math blocks in lists and quotes, and the streaming cases: open math, hidden partial delimiters, identity of closed math blocks. |
 | `test/parser/line_buffer_test.dart` | Line splitting, CR/LF handling across chunks, surrogate hold-back. |
 | `test/highlight/highlighter_test.dart` | Every built-in language yields ordered, in-range tokens; multi-line state carries across lines; incremental equals one-shot; custom languages. |
 | `test/controller_test.dart` | Controller semantics, per-frame notification coalescing, disposal safety. |
 | `test/widgets/streaming_markdown_test.dart` | The three constructors, finished blocks are not rebuilt, link safety, image placeholders, theme resolution order, table columns never shrink and never wrap mid-word (with real Roboto), stream errors, robustness while streaming. |
 | `test/widgets/code_block_test.dart` | Copy button and feedback, theme colors, language changes, chunked rendering of long blocks, custom builder. |
+| `test/widgets/math_test.dart` | The TeX fallback without a builder, the builder for inline and display math, the builder never called for open math, finished math not rebuilt, wide math scrolling, math source staying left-to-right. |
 | `test/widgets/accessibility_test.dart` | Semantics roles and labels, RTL layout and mirroring, large text scales. |
 | `test/golden/streaming_golden_test.dart` | A mid-stream snapshot (open fence, table, list) in light and dark, against `test/golden/goldens/*.png`. Rendered with the default test font so layout is identical everywhere, and compared with a 2% pixel tolerance because the rasterizer anti-aliases edges slightly differently per operating system (a changed layout, color or missing widget moves far more pixels; a size change always fails). Regenerate with `flutter test --update-goldens test/golden`. |
 

@@ -20,8 +20,10 @@ final RegExp _delimRe = RegExp(
 );
 final RegExp _taskRe = RegExp(r'^\[([ xX])\](?:[ \t]+|$)');
 final RegExp _hideShortRe = RegExp(
-  r'^(?:#{1,6}|[-*+_=~`|:>]{1,2}|\d{1,9}[.)])$',
+  r'^(?:#{1,6}|[-*+_=~`|:>]{1,2}|\d{1,9}[.)]|\$\$?|\\\[?)$',
 );
+final RegExp _mathOpenRe = RegExp(r'^ {0,3}(\$\$(?!\$)|\\\[)(.*)$');
+final RegExp _hideMathCloseRe = RegExp(r'^\s*(?:\$\$?|\\\]?)\s*$');
 final RegExp _hideDashesRe = RegExp(r'^[|\-:=\s]+$');
 final RegExp _hideFenceRe = RegExp(r'^ {0,3}[`~]+$');
 final RegExp _leadingMarkersRe = RegExp(r'^[ \t>]+');
@@ -69,6 +71,15 @@ class _CodeOpen extends _Open {
   final List<String> lines;
   @override
   _CodeOpen clone() => _CodeOpen(id, List.of(lines));
+}
+
+class _MathOpen extends _Open {
+  _MathOpen(super.id, this.closer, this.openLine, this.lines);
+  final String closer;
+  final String openLine;
+  final List<String> lines;
+  @override
+  _MathOpen clone() => _MathOpen(id, closer, openLine, List.of(lines));
 }
 
 class _QuoteOpen extends _Open {
@@ -169,6 +180,50 @@ Match? _openFence(String line) {
   if (m == null) return null;
   if (m[2]!.startsWith('`') && m[3]!.contains('`')) return null;
   return m;
+}
+
+/// The start of a display math block on [line]: its closing delimiter and,
+/// for a one-line block (`$$E=mc^2$$`), its TeX.
+///
+/// A block opens only on a line that is just `$$` or `\[`, or that is one
+/// complete non-empty block. Anything else (`$$ is the PID`, `\[1\] Smith`,
+/// `$$a$$ and text`) is a paragraph, so prose cannot open a block that would
+/// swallow the text after it.
+({String closer, String? tex})? _mathStart(String line) {
+  final m = _mathOpenRe.firstMatch(line);
+  if (m == null) return null;
+  final closer = m[1] == r'$$' ? r'$$' : r'\]';
+  final rest = m[2]!.trim();
+  if (rest.isEmpty) return (closer: closer, tex: null);
+  final at = rest.indexOf(closer);
+  if (at < 0 || at + closer.length != rest.length || _escaped(rest, at)) {
+    return null;
+  }
+  final tex = rest.substring(0, at).trim();
+  return tex.isEmpty ? null : (closer: closer, tex: tex);
+}
+
+/// Whether the character at [at] is preceded by an odd number of
+/// backslashes (so `\$$` or `\\]` is not a closing delimiter).
+bool _escaped(String s, int at) {
+  var k = at;
+  while (k > 0 && s.codeUnitAt(k - 1) == 0x5C) {
+    k--;
+  }
+  return (at - k).isOdd;
+}
+
+/// The TeX of an open math block. While streaming, a trailing `$` or `\`
+/// is probably the start of the closing delimiter and is left out.
+String _mathTex(_MathOpen o, {required bool streaming}) {
+  var tex = o.lines.join('\n').trimRight();
+  if (streaming) {
+    final partial = o.closer == r'$$' ? r'$' : r'\';
+    if (tex.endsWith(partial) && !tex.endsWith(r'\\')) {
+      tex = tex.substring(0, tex.length - 1);
+    }
+  }
+  return tex.trim();
 }
 
 int _indentOf(String line) {
@@ -292,6 +347,23 @@ class _Engine {
         } else {
           f.lines.add(_stripIndent(line, f.indent));
         }
+      case final _MathOpen m:
+        final t = line.trim();
+        final end = t.length - m.closer.length;
+        if (t.isEmpty) {
+          // TeX display math cannot contain a blank line: this was not math.
+          _abandonMath(m);
+          feed(line);
+        } else if (t.endsWith(m.closer) && !_escaped(t, end)) {
+          final before = t.substring(0, end);
+          if (before.trim().isNotEmpty) m.lines.add(before);
+          _closeOpen();
+        } else if (t.startsWith(m.closer)) {
+          _closeOpen();
+          _start(t.substring(m.closer.length).trimLeft());
+        } else {
+          m.lines.add(line);
+        }
       case final _CodeOpen c:
         if (line.trim().isEmpty) {
           c.lines.add(line.length >= 4 ? line.substring(4) : '');
@@ -332,6 +404,16 @@ class _Engine {
         fm[1]!.length,
         fm[3]!,
       );
+      return;
+    }
+    final mm = options.math ? _mathStart(line) : null;
+    if (mm != null) {
+      final tex = mm.tex;
+      if (tex != null) {
+        committed.add(MathBlock(id: _newId(), isOpen: isPreview, tex: tex));
+      } else {
+        open = _MathOpen(_newId(), mm.closer, line, []);
+      }
       return;
     }
     final am = _atxRe.firstMatch(line);
@@ -378,6 +460,7 @@ class _Engine {
   bool _isBlockStart(String line) {
     if (_indentOf(line) >= 4) return false;
     if (_openFence(line) != null) return true;
+    if (options.math && _mathStart(line) != null) return true;
     if (_atxRe.hasMatch(line) ||
         _hrRe.hasMatch(line) ||
         _quoteRe.hasMatch(line)) {
@@ -579,7 +662,7 @@ class _Engine {
       final o = e.open;
       return [...e.committed, if (o != null) e._snap(o, streaming: true)];
     }
-    e._closeOpen();
+    e.finish();
     return e.committed;
   }
 
@@ -594,6 +677,12 @@ class _Engine {
           lines: List.unmodifiable(f.lines),
           info: f.info,
           language: _languageOf(f.info),
+        );
+      case final _MathOpen m:
+        return MathBlock(
+          id: m.id,
+          isOpen: streaming,
+          tex: _mathTex(m, streaming: streaming),
         );
       case final _CodeOpen c:
         final lines = List<String>.of(c.lines);
@@ -641,7 +730,21 @@ class _Engine {
     committed.add(_snap(o, streaming: false));
   }
 
-  void finish() => _closeOpen();
+  /// Re-reads an unclosed math block as ordinary text, starting with a
+  /// paragraph holding its opening line. Only the open block is replayed,
+  /// so this stays cheap.
+  void _abandonMath(_MathOpen m) {
+    open = _ParaOpen(m.id, [m.openLine.trimLeft()]);
+    m.lines.forEach(feed);
+  }
+
+  void finish() {
+    // Replaying can open another (shorter) unclosed block; repeat until none.
+    for (var o = open; o is _MathOpen; o = open) {
+      _abandonMath(o);
+    }
+    _closeOpen();
+  }
 
   // -------------------------------------------------------------------------
   // Streaming tail
@@ -650,6 +753,7 @@ class _Engine {
   bool _hidePending(String pending) {
     final o = open;
     if (o is _FenceOpen) return _hideFenceRe.hasMatch(pending);
+    if (o is _MathOpen) return _hideMathCloseRe.hasMatch(pending);
     final s = pending.replaceFirst(_leadingMarkersRe, '');
     if (s.isEmpty) return true;
     if (_hideShortRe.hasMatch(s)) return true;

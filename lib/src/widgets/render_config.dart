@@ -22,6 +22,26 @@ typedef MarkdownImageBuilder =
 typedef MarkdownCodeBlockBuilder =
     Widget Function(BuildContext context, CodeBlock block);
 
+/// Builds the widget for LaTeX math, usually with a math typesetting package.
+///
+/// [tex] is the TeX source without its delimiters; [display] is `true` for
+/// display math (`$$…$$`, `\[…\]`) and `false` for inline math (`$…$`,
+/// `\(…\)`). For example, with `flutter_math_fork`:
+///
+/// ```dart
+/// mathBuilder: (context, tex, display) => Math.tex(
+///   tex,
+///   mathStyle: display ? MathStyle.display : MathStyle.text,
+///   onErrorFallback: (error) => Text(tex),
+/// ),
+/// ```
+///
+/// It is only called for complete math. While the closing delimiter has not
+/// arrived yet, the TeX source is shown in the code style instead, so the
+/// builder never sees half-written TeX such as `\frac{a}{`.
+typedef MarkdownMathBuilder =
+    Widget Function(BuildContext context, String tex, bool display);
+
 /// Everything the block widgets need to render; compared by identity so that
 /// finished blocks are not rebuilt unless the configuration really changes.
 class MarkdownRenderConfig {
@@ -32,6 +52,7 @@ class MarkdownRenderConfig {
     this.onTapLink,
     this.imageBuilder,
     this.codeBlockBuilder,
+    this.mathBuilder,
   });
 
   /// The resolved theme.
@@ -48,4 +69,7 @@ class MarkdownRenderConfig {
 
   /// Code block builder.
   final MarkdownCodeBlockBuilder? codeBlockBuilder;
+
+  /// Math builder.
+  final MarkdownMathBuilder? mathBuilder;
 }

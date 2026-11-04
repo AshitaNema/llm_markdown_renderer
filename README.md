@@ -101,6 +101,37 @@ StreamingMarkdown(
 * Replace the code block entirely with `codeBlockBuilder`, or reuse
   `CodeBlockView` in your own layout.
 
+### LaTeX math
+
+`$…$` and `\(…\)` are parsed as inline math, `$$…$$` as display math, and
+`$$` or `\[` alone on a line opens a display math block. The package does not typeset TeX itself, so it takes no math
+dependency. Pass a `mathBuilder` with the typesetter of your choice, for
+example [`flutter_math_fork`](https://pub.dev/packages/flutter_math_fork):
+
+```dart
+StreamingMarkdown(
+  controller: controller,
+  mathBuilder: (context, tex, display) => Math.tex(
+    tex,
+    mathStyle: display ? MathStyle.display : MathStyle.text,
+    onErrorFallback: (error) => Text(tex),
+  ),
+)
+```
+
+* Without a builder, the TeX source is shown in the code style.
+* The builder is only called for **complete** math, so your typesetter never
+  sees half-written TeX such as `\frac{a}{`. While streaming, an open math
+  block shows its source in a code box; unclosed inline math stays text until
+  its closing `$` arrives (except `$\…`, which is shown as source).
+* Prices and shell variables are left alone: `$5 and $10`, `$HOME` and
+  `echo $$` stay text (Pandoc's rules for `$`), and `\$` is always a literal
+  dollar sign. Inside a paragraph `\[` stays an escaped bracket. A `$$` block
+  that never closes (by a blank line or the end) is shown as text. Turn math
+  off entirely with `MarkdownParserOptions(math: false)`.
+* Pass a stable function (a top-level function or a method), not a new
+  closure on every build, so finished blocks are not rebuilt.
+
 ## How it differs from re-rendering the whole text
 
 The usual way to show a streamed answer is to pass the growing string to a
@@ -228,13 +259,11 @@ parser.complete();
 Supported: ATX/setext headings, paragraphs, emphasis/strong/strikethrough,
 inline code, links, images, autolinks, fenced and indented code, block quotes,
 nested ordered/unordered lists, task lists, thematic breaks, GFM tables,
-backslash escapes and common entities.
+LaTeX math (`$…$`, `\(…\)`, `$$…$$`, `\[…\]` blocks), backslash escapes and
+common entities.
 
 **Not supported yet**
 
-* **LaTeX math** (`$…$`, `$$…$$`). Models emit it often. It is the most likely
-  next feature, as an opt-in hook so the package does not take a math
-  dependency. Until then it is shown as plain text.
 * **Reference-style links** (`[text][ref]` with a `[ref]: url` definition).
   They need the whole document, which is at odds with incremental parsing.
 * **Raw HTML.** It is never interpreted; it is shown as text.

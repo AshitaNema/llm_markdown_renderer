@@ -131,6 +131,43 @@ final class CodeBlock extends Block {
   String toString() => 'Code(${language ?? '-'}, ${lines.length} lines)';
 }
 
+/// A display math block: `$$` or `\[` alone on a line, up to the matching
+/// `$$` or `\]`, or a whole line such as `$$E=mc^2$$`.
+///
+/// A block that has not closed by the next blank line (display math cannot
+/// contain one) or by the end of the input was not math: its lines are read
+/// as ordinary text instead.
+///
+/// ```markdown
+/// $$
+/// \int_0^1 x^2\,dx = \tfrac13
+/// $$
+/// ```
+///
+/// While [isOpen], [tex] is probably incomplete, so renderers should show
+/// the source rather than try to typeset it.
+final class MathBlock extends Block {
+  /// Creates a math block.
+  const MathBlock({
+    required super.id,
+    required super.isOpen,
+    required this.tex,
+  });
+
+  /// The TeX source, without the delimiters.
+  final String tex;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MathBlock && other.isOpen == isOpen && other.tex == tex;
+
+  @override
+  int get hashCode => Object.hash(MathBlock, isOpen, tex);
+
+  @override
+  String toString() => 'MathBlock(${tex.replaceAll('\n', r'\n')})';
+}
+
 /// A block quote: `> text`.
 final class BlockQuoteBlock extends Block {
   /// Creates a block quote.

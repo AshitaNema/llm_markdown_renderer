@@ -1,5 +1,18 @@
 ## Unreleased
 
+* **LaTeX math.** `$…$` and `\(…\)` inline, `$$…$$` for display math, and
+  `$$` or `\[` blocks on their own lines, as `InlineMath` and `MathBlock`
+  nodes. Typeset it with the new
+  `mathBuilder` (`MarkdownMathBuilder`) and the package of your choice, for
+  example `flutter_math_fork`; without one the TeX source is shown in the code
+  style. The builder is only called once the closing delimiter has arrived,
+  so it never sees half-written TeX. Prices and shell variables (`$5 and $10`,
+  `$HOME`) stay text, also while streaming.
+  On by default; turn it off with `MarkdownParserOptions(math: false)`.
+* Behavior change: with math on, `$x$`, `$$x$$` and `\(x\)`, and `$$` or
+  `\[` blocks on their own lines, no longer render as literal text. Use `\$`
+  for a literal dollar sign, or turn math off.
+* The example app typesets math with `flutter_math_fork`.
 * Docs: correct the claim that the parser can be used from plain Dart. It imports nothing from Flutter, but the package depends on the Flutter SDK.
 
 ## 0.2.2
