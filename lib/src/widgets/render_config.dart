@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import '../ast/block.dart';
+import '../ast/inline.dart';
 import '../highlight/highlighter.dart';
 import '../theme/markdown_theme.dart';
 
@@ -10,13 +11,20 @@ import '../theme/markdown_theme.dart';
 /// package never launches URLs itself; open them with your preferred plugin.
 typedef MarkdownLinkCallback = void Function(String url, String? title);
 
-/// Builds the widget shown for an image `![alt](url)`.
+/// Builds the widget shown for an image `![alt](url "title")`.
 ///
 /// By default images are *not* fetched; a placeholder with the alt text is
-/// shown instead. Supply a builder (for example returning `Image.network`)
-/// to opt in.
+/// shown instead. Supply a builder to opt in:
+///
+/// ```dart
+/// imageBuilder: (context, image, style) =>
+///     Image.network(image.url, semanticLabel: image.alt),
+/// ```
+///
+/// [style] is the text style around the image (a widget inside text does
+/// not inherit it).
 typedef MarkdownImageBuilder =
-    Widget Function(BuildContext context, String url, String alt);
+    Widget Function(BuildContext context, InlineImage image, TextStyle style);
 
 /// Builds a custom widget for a code block, replacing `CodeBlockView`.
 ///
@@ -44,25 +52,35 @@ typedef MarkdownThinkingBuilder =
 
 /// Builds the widget for a citation marker such as `[1]` or `[1, 2]`.
 ///
-/// [labels] are the cited labels (`['1', '2']`). The widget is placed inline
-/// with the text, so keep it small: a superscript chip, for example.
+/// [InlineCitation.labels] are the cited labels (`['1', '2']`) and
+/// [InlineCitation.source] the marker as written. The widget is placed inline
+/// with the text, so keep it small (a superscript chip, for example); [style]
+/// is the text style around it.
 typedef MarkdownCitationBuilder =
-    Widget Function(BuildContext context, List<String> labels);
+    Widget Function(
+      BuildContext context,
+      InlineCitation citation,
+      TextStyle style,
+    );
 
 /// Called when the user taps one label of a citation marker.
 typedef MarkdownCitationCallback = void Function(String label);
 
 /// Builds the widget for LaTeX math, usually with a math typesetting package.
 ///
-/// [tex] is the TeX source without its delimiters; [display] is `true` for
-/// display math (`$$…$$`, `\[…\]`) and `false` for inline math (`$…$`,
-/// `\(…\)`). For example, with `flutter_math_fork`:
+/// [InlineMath.tex] is the TeX source without its delimiters, and
+/// [InlineMath.display] is `true` for display math (`$$…$$`, a `MathBlock`)
+/// and `false` for inline math (`$…$`, `\(…\)`). For a `MathBlock` the
+/// builder gets `InlineMath(block.tex, display: true)`. [style] is the text
+/// style around the math, so inline math in a heading can match its size.
+/// For example, with `flutter_math_fork`:
 ///
 /// ```dart
-/// mathBuilder: (context, tex, display) => Math.tex(
-///   tex,
-///   mathStyle: display ? MathStyle.display : MathStyle.text,
-///   onErrorFallback: (error) => Text(tex),
+/// mathBuilder: (context, math, style) => Math.tex(
+///   math.tex,
+///   mathStyle: math.display ? MathStyle.display : MathStyle.text,
+///   textStyle: style,
+///   onErrorFallback: (error) => Text(math.tex, style: style),
 /// ),
 /// ```
 ///
@@ -70,7 +88,7 @@ typedef MarkdownCitationCallback = void Function(String label);
 /// arrived yet, the TeX source is shown in the code style instead, so the
 /// builder never sees half-written TeX such as `\frac{a}{`.
 typedef MarkdownMathBuilder =
-    Widget Function(BuildContext context, String tex, bool display);
+    Widget Function(BuildContext context, InlineMath math, TextStyle style);
 
 /// Everything the block widgets need to render; compared by identity so that
 /// finished blocks are not rebuilt unless the configuration really changes.

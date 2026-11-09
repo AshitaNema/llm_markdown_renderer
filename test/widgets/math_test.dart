@@ -11,9 +11,12 @@ Widget host(Widget child) => MaterialApp(
 class FakeMath {
   final List<(String, bool)> calls = [];
 
-  Widget build(BuildContext context, String tex, bool display) {
-    calls.add((tex, display));
-    return Text('[${display ? 'D' : 'I'}:$tex]');
+  final List<TextStyle> styles = [];
+
+  Widget build(BuildContext context, InlineMath math, TextStyle style) {
+    calls.add((math.tex, math.display));
+    styles.add(style);
+    return Text('[${math.display ? 'D' : 'I'}:${math.tex}]');
   }
 }
 
@@ -112,8 +115,8 @@ void main() {
       host(
         StreamingMarkdown.static(
           data: '\$\$\n${'x + ' * 200}y\n\$\$\n',
-          mathBuilder: (context, tex, display) =>
-              SizedBox(width: 2000, height: 20, child: Text(tex)),
+          mathBuilder: (context, math, style) =>
+              SizedBox(width: 2000, height: 20, child: Text(math.tex)),
           selectable: false,
         ),
       ),
@@ -140,5 +143,23 @@ void main() {
     );
     final text = find.text('a - b');
     expect(Directionality.of(tester.element(text)), TextDirection.ltr);
+  });
+
+  testWidgets('the builder gets the surrounding text style', (tester) async {
+    final math = FakeMath();
+    await tester.pumpWidget(
+      host(
+        StreamingMarkdown.static(
+          data: '# Area \$\\pi r^2\$\n\nBody **\$x\$**\n',
+          mathBuilder: math.build,
+          selectable: false,
+        ),
+      ),
+    );
+    final theme = MarkdownTheme.of(tester.element(find.byType(Scaffold)));
+    expect(math.calls, [(r'\pi r^2', false), ('x', false)]);
+    expect(math.styles[0].fontSize, theme.headingStyle(1).fontSize);
+    expect(math.styles[1].fontSize, theme.bodyStyle.fontSize);
+    expect(math.styles[1].fontWeight, FontWeight.bold);
   });
 }

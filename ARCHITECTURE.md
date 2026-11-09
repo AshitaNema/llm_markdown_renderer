@@ -200,6 +200,24 @@ current) but notifies listeners at most once per frame, through
 `SchedulerBinding.scheduleFrameCallback`. Two hundred tokens per second cost one
 rebuild per frame.
 
+### Typing pace
+
+With a `TypingPace`, `append` puts the chunk in a queue instead of the
+parser (a queue, not a growing string, so appending stays O(chunk) while no
+frames run), and a frame callback releases it. Chunks get a deadline on the
+first frame after they arrive (that frame plus `maxDelay`); chunks that arrive
+between two frames share one deadline entry, so the list stays as short as
+the number of frames in `maxDelay`. The first frame after a quiet spell
+counts as one full frame, so slow text appears on the next frame, as it
+would without a pace. Every frame
+releases text at the steady `charactersPerSecond`, or faster if that is what
+it takes for every waiting chunk to be shown by its deadline; anything already
+past its deadline (after the app was paused) is released at once. So a burst
+drains at an even speed, and the lag never exceeds `maxDelay` plus a frame.
+Releases never split a surrogate pair. `complete()` takes effect once the
+buffer is empty; `flush()` releases everything immediately. Without a
+Flutter binding (no frames), text is shown immediately.
+
 ### Code blocks
 
 `CodeBlockView` keeps, per block: the token lists of finished lines, the
@@ -263,9 +281,11 @@ order:
 Exported from `package:llm_markdown_renderer/llm_markdown_renderer.dart`:
 
 * widgets and controller: `StreamingMarkdown`, `MarkdownStreamController`,
-  `CodeBlockView`;
+  `TypingPace`, `CodeBlockView`;
 * theming: `MarkdownTheme`, `SyntaxTheme`;
-* callbacks: `MarkdownLinkCallback`, `MarkdownImageBuilder`,
+* callbacks (builders take `(context, node, style)` or `(context, node)`,
+  so the node can gain fields without breaking them): `MarkdownLinkCallback`,
+  `MarkdownImageBuilder`,
   `MarkdownCodeBlockBuilder`, `MarkdownMathBuilder`, `MarkdownThinkingBuilder`,
   `MarkdownCitationBuilder`, `MarkdownCitationCallback`;
 * everything in `parser.dart`.
@@ -315,6 +335,7 @@ differences, made so that every append stays cheap:
 | `test/parser/line_buffer_test.dart` | Line splitting, CR/LF handling across chunks, surrogate hold-back. |
 | `test/highlight/highlighter_test.dart` | Every built-in language yields ordered, in-range tokens; multi-line state carries across lines; incremental equals one-shot; custom languages. |
 | `test/controller_test.dart` | Controller semantics, per-frame notification coalescing, disposal safety. |
+| `test/typing_pace_test.dart` | Pacing: steady speed for a burst, a 3,000-character backlog drained within `maxDelay`, `complete()` waiting for the buffer, `flush()`, `reset()`, emoji never split, disposal while typing, `StreamingMarkdown.fromStream(pace:)`. |
 | `test/widgets/streaming_markdown_test.dart` | The three constructors, finished blocks are not rebuilt, link safety, image placeholders, theme resolution order, table columns never shrink and never wrap mid-word (with real Roboto), stream errors, robustness while streaming. |
 | `test/widgets/code_block_test.dart` | Copy button and feedback, theme colors, language changes, chunked rendering of long blocks, custom builder. |
 | `test/parser/thinking_citations_test.dart` | Citation markers and what is not one (links, definitions, indexing, ranges, tasks, escapes), `<think>` sections (same-line tags, case, only at the start of the reply, `</think>` inside code, text after the closing tag, unclosed), the streaming cases (hidden partial tags and markers), identity of finished blocks inside a section, and that an append costs the same in a 10- and a 1,500-paragraph section. |

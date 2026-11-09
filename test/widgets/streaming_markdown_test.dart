@@ -197,7 +197,8 @@ void main() {
           StreamingMarkdown.static(
             data: '![a cat](https://x/cat.png)',
             selectable: false,
-            imageBuilder: (c, url, alt) => Text('IMG[$url|$alt]'),
+            imageBuilder: (c, image, style) =>
+                Text('IMG[${image.url}|${image.alt}]'),
           ),
         ),
       );
@@ -284,6 +285,12 @@ void main() {
       await tester.pump();
       expect(seen, isA<StateError>());
       expect(find.textContaining('partial'), findsOneWidget);
+      // Data after the error is ignored instead of appending to a completed
+      // document (which would throw).
+      s.add(' more');
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('more'), findsNothing);
     });
 
     testWidgets('unhandled stream errors are reported to FlutterError', (
