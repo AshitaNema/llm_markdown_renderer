@@ -48,7 +48,8 @@ class StreamingMarkdown extends StatefulWidget {
   }) : stream = null,
        data = null,
        parserOptions = const MarkdownParserOptions(),
-       onStreamError = null;
+       onStreamError = null,
+       pace = null;
 
   /// Renders the Markdown arriving on [stream].
   ///
@@ -61,6 +62,7 @@ class StreamingMarkdown extends StatefulWidget {
     required Stream<String> this.stream,
     this.parserOptions = const MarkdownParserOptions(),
     this.onStreamError,
+    this.pace,
     this.theme,
     this.selectable = true,
     this.onTapLink,
@@ -91,7 +93,8 @@ class StreamingMarkdown extends StatefulWidget {
     this.highlighter = const CodeHighlighter.defaults(),
   }) : controller = null,
        stream = null,
-       onStreamError = null;
+       onStreamError = null,
+       pace = null;
 
   /// The externally owned controller, for the default constructor.
   final MarkdownStreamController? controller;
@@ -103,8 +106,15 @@ class StreamingMarkdown extends StatefulWidget {
   final String? data;
 
   /// Parser features, for the stream and static constructors. (With an
-  /// external controller, configure the controller instead.)
+  /// external controller, configure the controller instead.) Read when the
+  /// stream or text is attached: changing it later has no effect until
+  /// [stream] or [data] changes.
   final MarkdownParserOptions parserOptions;
+
+  /// Smooths a bursty [stream] so the text appears at a steady speed; see
+  /// [TypingPace]. (With an external controller, give the controller a pace
+  /// instead.) Read when the stream is attached.
+  final TypingPace? pace;
 
   /// Called when [stream] emits an error. If `null` the error is reported
   /// through [FlutterError.reportError]. Either way, rendering is completed.
@@ -175,6 +185,7 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
       _controller = MarkdownStreamController(
         options: widget.parserOptions,
         coalesceNotifications: stream != null,
+        pace: stream != null ? widget.pace : null,
       );
       if (stream != null) {
         _subscription = stream.listen(
@@ -199,6 +210,10 @@ class _StreamingMarkdownState extends State<StreamingMarkdown> {
   }
 
   void _onStreamError(Object error, StackTrace stackTrace) {
+    // Stop listening: the document is completed below, and a stream that
+    // keeps emitting after an error would otherwise append to it.
+    unawaited(_subscription?.cancel());
+    _subscription = null;
     _controller.complete();
     final handler = widget.onStreamError;
     if (handler != null) {

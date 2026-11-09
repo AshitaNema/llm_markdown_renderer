@@ -3,6 +3,7 @@ import 'dart:ui' show SemanticsRole;
 import 'package:flutter/material.dart';
 
 import '../ast/block.dart';
+import '../ast/inline.dart';
 import 'code_block.dart';
 import 'inline_renderer.dart';
 import 'render_config.dart';
@@ -193,7 +194,11 @@ class BlockView extends StatelessWidget {
         textStyle: textStyle,
       ),
       final TableBlock table => MarkdownTableView(block: table, config: config),
-      final MathBlock math => _MathBlockView(block: math, config: config),
+      final MathBlock math => _MathBlockView(
+        block: math,
+        config: config,
+        textStyle: textStyle,
+      ),
       final ThinkingBlock thinking => _ThinkingView(
         block: thinking,
         config: config,
@@ -215,10 +220,15 @@ class BlockView extends StatelessWidget {
 /// or, without a builder or while still open, the TeX source in a code box.
 /// Wide content scrolls horizontally instead of overflowing.
 class _MathBlockView extends StatelessWidget {
-  const _MathBlockView({required this.block, required this.config});
+  const _MathBlockView({
+    required this.block,
+    required this.config,
+    required this.textStyle,
+  });
 
   final MathBlock block;
   final MarkdownRenderConfig config;
+  final TextStyle textStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -227,7 +237,11 @@ class _MathBlockView extends StatelessWidget {
       return Center(
         child: SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          child: builder(context, block.tex, true),
+          child: builder(
+            context,
+            InlineMath(block.tex, display: true),
+            DefaultTextStyle.of(context).style.merge(textStyle),
+          ),
         ),
       );
     }

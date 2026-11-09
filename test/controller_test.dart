@@ -8,6 +8,7 @@ void main() {
     c.append('a');
     expect(c.text, '# Hi\n\npara');
     expect(c.document.blocks, hasLength(2));
+    expect(c.debugInlineParseCount, greaterThan(0));
     expect(c.isComplete, isFalse);
     c.dispose();
   });

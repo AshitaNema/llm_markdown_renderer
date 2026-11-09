@@ -140,7 +140,8 @@ void main() {
           StreamingMarkdown.static(
             data: 'Paris [1, 2] is big [3].',
             selectable: false,
-            citationBuilder: (context, labels) => Text('<${labels.join('+')}>'),
+            citationBuilder: (context, cite, style) =>
+                Text('<${cite.labels.join('+')}>'),
           ),
         ),
       );

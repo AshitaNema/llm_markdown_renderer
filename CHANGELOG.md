@@ -1,3 +1,28 @@
+## 1.0.0
+
+The first stable release. From here on the package follows semantic versioning: the API exported from `llm_markdown_renderer.dart` and `parser.dart` only changes incompatibly in a major release, and new `Block` or `Inline` subclasses also wait for a major release. See "Versioning" in the README.
+
+New:
+
+* **Smooth typing.** `MarkdownStreamController(pace: TypingPace(...))` shows bursty streams at a steady speed, never more than `maxDelay` behind what has arrived. `StreamingMarkdown.fromStream` takes a `pace` too.
+* `MarkdownStreamController.flush()` shows all waiting text at once (for a "Stop" button), and `pendingLength` says how much is waiting. With a pace, `complete()` finishes the document once the waiting text has been shown.
+
+Breaking changes (made now so the stable API can grow without more of them):
+
+* **Builders get the node and the surrounding text style.** `MarkdownImageBuilder`, `MarkdownMathBuilder` and `MarkdownCitationBuilder` now take `(context, node, style)`: the `InlineImage`, `InlineMath` or `InlineCitation` (which can gain fields without breaking your code) and the `TextStyle` around it, which a widget inside text does not inherit. Inline math in a heading can now match the heading's size, and an image builder can read `image.title`. Migrate:
+  * `imageBuilder: (context, url, alt) => …` → `(context, image, style) => …` with `image.url`, `image.alt`.
+  * `mathBuilder: (context, tex, display) => …` → `(context, math, style) => …` with `math.tex`, `math.display`; pass `style` to your typesetter. For a `MathBlock` you get `InlineMath(block.tex, display: true)`.
+  * `citationBuilder: (context, labels) => …` → `(context, citation, style) => …` with `citation.labels`.
+* `MarkdownTheme` is now a `final class`; build variants with `copyWith` instead of subclassing.
+
+Fixes:
+
+* `StreamingMarkdown.fromStream` stops listening after a stream error, so data the stream emits afterwards no longer throws a `StateError`.
+
+Example:
+
+* The example app paces its replies, flushes them when you tap "Stop", and passes the text style to its math typesetter.
+
 ## 0.3.0
 
 LaTeX math, thinking sections and citations, the syntax models emit most that plain Markdown does not cover.

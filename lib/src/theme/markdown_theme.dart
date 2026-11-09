@@ -19,7 +19,7 @@ import 'syntax_theme.dart';
 /// When no extension is registered, [MarkdownTheme.fromTheme] derives a
 /// theme from the surrounding [ThemeData] (light and dark are both handled).
 @immutable
-class MarkdownTheme extends ThemeExtension<MarkdownTheme> {
+final class MarkdownTheme extends ThemeExtension<MarkdownTheme> {
   /// Creates a Markdown theme from explicit values.
   const MarkdownTheme({
     required this.bodyStyle,

@@ -65,14 +65,15 @@ class _ChatDemoAppState extends State<ChatDemoApp> {
 }
 
 /// One chat message. Assistant messages own a controller that the fake LLM
-/// stream is piped into.
+/// stream is piped into. The controller paces bursts of tokens, as a real
+/// model's stream would deliver them, into steady typing.
 class _Message {
   _Message.user(this.text) : isUser = true, markdown = '', controller = null;
 
   _Message.assistant({required this.markdown})
     : isUser = false,
       text = '',
-      controller = MarkdownStreamController();
+      controller = MarkdownStreamController(pace: const TypingPace());
 
   final bool isUser;
   final String text;
@@ -176,7 +177,9 @@ class _ChatPageState extends State<ChatPage> {
 
   void _stop(_Message m) {
     m.subscription?.cancel();
-    m.controller!.complete();
+    m.controller!
+      ..complete()
+      ..flush(); // show what already arrived instead of typing it out
     setState(() => m.streaming = false);
   }
 
@@ -453,9 +456,10 @@ class _FrameStats {
 /// Typesets LaTeX with `flutter_math_fork`; malformed TeX falls back to the
 /// source. A top-level function is a stable reference, so finished blocks
 /// are not rebuilt when the bubble rebuilds.
-Widget _buildMath(BuildContext context, String tex, bool display) => Math.tex(
-  tex,
-  mathStyle: display ? MathStyle.display : MathStyle.text,
-  textStyle: DefaultTextStyle.of(context).style,
-  onErrorFallback: (error) => Text(tex),
-);
+Widget _buildMath(BuildContext context, InlineMath math, TextStyle style) =>
+    Math.tex(
+      math.tex,
+      mathStyle: math.display ? MathStyle.display : MathStyle.text,
+      textStyle: style,
+      onErrorFallback: (error) => Text(math.tex, style: style),
+    );

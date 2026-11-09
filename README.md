@@ -69,6 +69,35 @@ The widget owns the subscription and completes the document when the stream
 ends. Keep the `Stream` instance stable across rebuilds; passing a different
 one starts over. Handle failures with `onStreamError`.
 
+### Smooth typing
+
+Models and networks deliver text in bursts: a pause, then forty tokens at
+once. Give the controller a `TypingPace` and the text types itself out at a
+steady speed instead:
+
+```dart
+final controller = MarkdownStreamController(
+  pace: const TypingPace(
+    charactersPerSecond: 250, // the steady speed
+    maxDelay: Duration(milliseconds: 400), // never further behind than this
+  ),
+);
+
+// or, with a stream:
+StreamingMarkdown.fromStream(stream: llmTokens, pace: const TypingPace())
+```
+
+A big burst is shown faster, so what is on screen is never more than about
+`maxDelay` (plus a frame) behind what has arrived. `complete()` finishes the document once
+the waiting text has been shown; call `flush()` to show it all at once, for
+example when the user taps "Stop". `controller.text` always holds everything
+received, and `pendingLength` says how much is still waiting.
+
+Text is released by frame callbacks. In widget tests, pump until
+`pendingLength` is 0 or call `flush()` before the test ends; disposing the
+controller in `addTearDown` is too late, and the test fails with "An
+animation is still running".
+
 ### Static content
 
 ```dart
@@ -88,7 +117,7 @@ Anything that yields text chunks works.
 StreamingMarkdown(
   controller: controller,
   onTapLink: (url, title) => launchUrl(Uri.parse(url)), // your choice of plugin
-  imageBuilder: (context, url, alt) => Image.network(url), // opt in to images
+  imageBuilder: (context, image, style) => Image.network(image.url), // opt in
   highlighter: const CodeHighlighter.defaults(),
 )
 ```
@@ -125,7 +154,7 @@ StreamingMarkdown(
   controller: controller,
   onTapCitation: (label) => showSource(label), // labels look like links
   // or take over the look entirely:
-  citationBuilder: (context, labels) => SourceChip(labels),
+  citationBuilder: (context, citation, style) => SourceChip(citation.labels),
   thinkingBuilder: (context, block, content) => ExpansionTile(
     title: Text(block.isOpen ? 'Thinking…' : 'Thought process'),
     children: [content],
@@ -150,10 +179,11 @@ example [`flutter_math_fork`](https://pub.dev/packages/flutter_math_fork):
 ```dart
 StreamingMarkdown(
   controller: controller,
-  mathBuilder: (context, tex, display) => Math.tex(
-    tex,
-    mathStyle: display ? MathStyle.display : MathStyle.text,
-    onErrorFallback: (error) => Text(tex),
+  mathBuilder: (context, math, style) => Math.tex(
+    math.tex,
+    mathStyle: math.display ? MathStyle.display : MathStyle.text,
+    textStyle: style, // the surrounding text style, e.g. a heading's size
+    onErrorFallback: (error) => Text(math.tex, style: style),
   ),
 )
 ```
@@ -342,6 +372,39 @@ frame-time readout.
 ```sh
 cd example && flutter run
 ```
+
+## Versioning
+
+Since 1.0.0 the package follows [semantic versioning](https://semver.org).
+The public API is everything exported from
+`package:llm_markdown_renderer/llm_markdown_renderer.dart` and
+`package:llm_markdown_renderer/parser.dart`; nothing under `lib/src/` is
+public, even where it is importable.
+
+* **Patch releases** fix bugs. How a malformed or unusual input renders may
+  change when the old result was a bug.
+* **Minor releases** add features: new parameters, options and builders,
+  new syntax, new languages for the highlighter. New syntax is either off by
+  default or only changes input that used to render as literal text, so a
+  normal document keeps rendering the same. Raising the minimum Flutter or
+  Dart SDK is also a minor release.
+* **Major releases** are the only ones that remove or rename API, change the
+  shape of a builder callback, change a default in a way that changes normal
+  documents, or add `Block` or `Inline` subclasses (those hierarchies are
+  `sealed`, so a new subclass would break exhaustive `switch` statements).
+
+What this promise does not cover, so that features can keep being added:
+
+* **Enums may gain values in minor releases** (`TokenKind`, for example, as
+  highlighting gets finer). Add a default case when you switch over one.
+* **Classes are not meant to be implemented or extended**, apart from
+  `CodeHighlighter` and the widgets. `CodeHighlighter` will not gain members
+  without a default implementation outside a major release.
+* **Members whose names start with `debug`** (such as
+  `debugInlineParseCount`) are diagnostics; their values and existence may
+  change in any release.
+* **Exact pixels** (spacing, default colors) may be polished in minor
+  releases; use a `MarkdownTheme` to pin them.
 
 ## Architecture
 

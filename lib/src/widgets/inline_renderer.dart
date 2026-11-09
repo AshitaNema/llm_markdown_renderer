@@ -24,12 +24,26 @@ bool isSafeLinkUrl(String url) {
 /// Converts inline nodes to spans. Gesture recognizers created for links are
 /// added to [recognizers] (which the caller must dispose); pass `null` to
 /// build a non-interactive span, e.g. for measuring.
+///
+/// [style] is the resolved text style around [nodes]; it is passed on to the
+/// builders of widget spans (math, images, citations), which do not inherit
+/// the span styles.
 List<InlineSpan> buildInlineSpans(
   List<Inline> nodes,
   MarkdownRenderConfig config,
   BuildContext context,
-  List<GestureRecognizer>? recognizers,
-) {
+  List<GestureRecognizer>? recognizers, {
+  TextStyle style = const TextStyle(),
+}) {
+  List<InlineSpan> nested(List<Inline> children, TextStyle inner) =>
+      buildInlineSpans(
+        children,
+        config,
+        context,
+        recognizers,
+        style: style.merge(inner),
+      );
+
   final theme = config.theme;
   final out = <InlineSpan>[];
   for (final node in nodes) {
@@ -40,31 +54,40 @@ List<InlineSpan> buildInlineSpans(
         out.add(
           TextSpan(
             style: const TextStyle(fontStyle: FontStyle.italic),
-            children: buildInlineSpans(children, config, context, recognizers),
+            children: nested(
+              children,
+              const TextStyle(fontStyle: FontStyle.italic),
+            ),
           ),
         );
       case InlineStrong(:final children):
         out.add(
           TextSpan(
             style: const TextStyle(fontWeight: FontWeight.bold),
-            children: buildInlineSpans(children, config, context, recognizers),
+            children: nested(
+              children,
+              const TextStyle(fontWeight: FontWeight.bold),
+            ),
           ),
         );
       case InlineStrikethrough(:final children):
         out.add(
           TextSpan(
             style: const TextStyle(decoration: TextDecoration.lineThrough),
-            children: buildInlineSpans(children, config, context, recognizers),
+            children: nested(
+              children,
+              const TextStyle(decoration: TextDecoration.lineThrough),
+            ),
           ),
         );
       case InlineCode(:final code):
         out.add(TextSpan(text: code, style: theme.inlineCodeStyle));
       case final InlineCitation cite:
-        out.add(_citationSpan(cite, config, context, recognizers));
-      case InlineMath(:final tex, :final display, :final isOpen):
+        out.add(_citationSpan(cite, config, context, recognizers, style));
+      case final InlineMath math:
         final builder = config.mathBuilder;
-        if (builder == null || isOpen) {
-          out.add(TextSpan(text: tex, style: theme.inlineCodeStyle));
+        if (builder == null || math.isOpen) {
+          out.add(TextSpan(text: math.tex, style: theme.inlineCodeStyle));
         } else {
           // Scrolls (rather than overflowing) if wider than the line.
           out.add(
@@ -72,7 +95,7 @@ List<InlineSpan> buildInlineSpans(
               alignment: PlaceholderAlignment.middle,
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: builder(context, tex, display),
+                child: builder(context, math, style),
               ),
             ),
           );
@@ -89,16 +112,17 @@ List<InlineSpan> buildInlineSpans(
             style: theme.linkStyle,
             recognizer: recognizer,
             mouseCursor: recognizer == null ? null : SystemMouseCursors.click,
-            children: buildInlineSpans(children, config, context, recognizers),
+            children: nested(children, theme.linkStyle),
           ),
         );
-      case InlineImage(:final url, :final alt):
+      case final InlineImage image:
+        final alt = image.alt;
         final builder = config.imageBuilder;
         if (builder != null) {
           out.add(
             WidgetSpan(
               alignment: PlaceholderAlignment.middle,
-              child: builder(context, url, alt),
+              child: builder(context, image, style),
             ),
           );
         } else {
@@ -125,13 +149,14 @@ InlineSpan _citationSpan(
   MarkdownRenderConfig config,
   BuildContext context,
   List<GestureRecognizer>? recognizers,
+  TextStyle style,
 ) {
   final labels = cite.labels;
   final builder = config.citationBuilder;
   if (builder != null) {
     return WidgetSpan(
       alignment: PlaceholderAlignment.middle,
-      child: builder(context, labels),
+      child: builder(context, cite, style),
     );
   }
   final tap = config.onTapCitation;
@@ -266,6 +291,7 @@ class _InlineRichTextState extends State<InlineRichText> {
       widget.config,
       context,
       _recognizers,
+      style: DefaultTextStyle.of(context).style.merge(widget.style),
     );
     final text = Text.rich(
       TextSpan(style: widget.style, children: spans),
