@@ -187,6 +187,36 @@ void main() {
     c.dispose();
   });
 
+  testWidgets('many small chunks come out complete and in order', (
+    tester,
+  ) async {
+    final c = MarkdownStreamController(
+      pace: const TypingPace(
+        charactersPerSecond: 1000,
+        maxDelay: Duration(seconds: 10),
+      ),
+    );
+    addTearDown(c.dispose);
+    // 100 one-letter chunks, with emoji (two code units) among them, so
+    // releases end inside later chunks and the queue gets compacted.
+    final chunks = [
+      for (var i = 0; i < 100; i++) i % 7 == 3 ? '👋' : 'abcdefghij'[i % 10],
+    ];
+    chunks.forEach(c.append);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 70));
+    final partial = shown(c);
+    expect(partial.length, inInclusiveRange(70, 120));
+    expect(
+      partial.codeUnitAt(partial.length - 1),
+      isNot(inInclusiveRange(0xD800, 0xDBFF)),
+      reason: 'an emoji is never cut in half',
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(c.pendingLength, 0);
+    expect(shown(c), chunks.join());
+  });
+
   test('TypingPace rejects an infinite speed and prints its values', () {
     expect(
       () => TypingPace(charactersPerSecond: double.infinity),

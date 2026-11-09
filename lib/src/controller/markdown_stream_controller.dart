@@ -251,15 +251,16 @@ class MarkdownStreamController extends ChangeNotifier {
     return out.toString();
   }
 
-  /// The waiting code unit at [index] (0 is the next one to be shown).
+  /// The waiting code unit at [index] (0 is the next one to be shown;
+  /// [index] must be below [pendingLength]).
   int _pendingCodeUnitAt(int index) {
+    var k = _head;
     var i = index + _offset;
-    for (var k = _head; k < _queue.length; k++) {
-      final chunk = _queue[k];
-      if (i < chunk.length) return chunk.codeUnitAt(i);
-      i -= chunk.length;
+    while (i >= _queue[k].length) {
+      i -= _queue[k].length;
+      k++;
     }
-    throw RangeError.index(index, this, 'index', null, pendingLength);
+    return _queue[k].codeUnitAt(i);
   }
 
   SchedulerBinding? get _binding {
