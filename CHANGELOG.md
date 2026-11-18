@@ -1,3 +1,7 @@
+## 1.0.1
+
+* Remove the static analysis warnings under Flutter 3.50, which deprecates `package:flutter/material.dart` in favour of `package:material_ui`. The package keeps using `flutter/material.dart` for now, because moving to `material_ui` would give it a `ThemeData` that apps on `flutter/material.dart` cannot pass in. It will move once apps have migrated, in a major release.
+
 ## 1.0.0
 
 The first stable release. From here on the package follows semantic versioning: the API exported from `llm_markdown_renderer.dart` and `parser.dart` only changes incompatibly in a major release, and new `Block` or `Inline` subclasses also wait for a major release. See "Versioning" in the README.

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+// Kept until apps move to package:material_ui (Flutter 3.50+).
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 

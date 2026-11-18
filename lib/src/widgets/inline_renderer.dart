@@ -1,4 +1,6 @@
 import 'package:flutter/gestures.dart';
+// Kept until apps move to package:material_ui (Flutter 3.50+).
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 
 import '../ast/inline.dart';
