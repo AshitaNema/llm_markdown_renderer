@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
+// ignore: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -461,6 +462,14 @@ void main() {
         );
       }
       await loader.load();
+      // Since Flutter 3.50, loading a font also announces "system fonts
+      // changed", asynchronously, and that schedules a relayout frame. Wait
+      // for the message and run the frame now, or the test ends with that
+      // frame still pending ("An animation is still running").
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pump();
       tester.view.devicePixelRatio = 1.5;
       addTearDown(tester.view.reset);
       const md =
